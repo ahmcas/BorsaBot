@@ -135,9 +135,12 @@ def run_full_analysis():
         
         # Bugünün önerilerini kaydet
         for rec in selected:
-            rec_id = tracker.save_recommendation(rec)
-            print(f"  💾 {rec['ticker']} kaydedildi (ID: {rec_id})")
-        
+    # entry_price yoksa price kullan
+    if not rec.get("entry_price"):
+        rec["entry_price"] = rec.get("price", 0)
+
+    rec_id = tracker.save_recommendation(rec)
+      
         # Geçmiş önerilerin performansını kontrol et
         print("\n  🔍 Geçmiş performanslar kontrol ediliyor...")
         perf_results = tracker.check_performance([7, 14, 30])
