@@ -132,3 +132,30 @@ class PerformanceTracker:
             "win_rate": round((wins / total) * 100, 2),
             "avg_return_pct": round(avg_return, 2)
         }
+
+# -------------------------------------------------
+# GENERATE PERFORMANCE EMAIL TEXT
+# -------------------------------------------------
+def generate_performance_email(report_data):
+
+    win_rate = report_data.get("win_rate", 0)
+    avg_return = report_data.get("avg_return_pct", 0)
+
+    status = "🟢 Sistem Sağlıklı"
+    if win_rate < 50:
+        status = "🔴 Sistem Zayıf"
+    elif win_rate < 65:
+        status = "🟡 Dikkat"
+
+    email_text = f"""
+📊 PERFORMANS RAPORU
+
+Kazanç Oranı: %{win_rate}
+Ortalama Getiri: %{avg_return}
+
+Durum: {status}
+
+Sistem otomatik performans kontrolü tamamlandı.
+"""
+
+    return email_text
