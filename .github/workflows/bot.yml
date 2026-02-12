@@ -13,7 +13,7 @@ jobs:
       - name: Repo çek
         uses: actions/checkout@v3
         with:
-          persist-credentials: true
+          fetch-depth: 0
 
       - name: Python kur
         uses: actions/setup-python@v4
@@ -38,5 +38,5 @@ jobs:
           git config --global user.name "borsa-bot"
           git config --global user.email "bot@github.com"
           git add performance.db
-          git commit -m "Auto update performance database" || echo "No changes to commit"
+          git commit -m "Auto update performance database" || echo "No changes"
           git push
