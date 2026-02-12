@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Repo çek
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true
 
       - name: Python kur
         uses: actions/setup-python@v4
@@ -30,3 +32,11 @@ jobs:
           MAIL_RECIPIENT: ${{ secrets.MAIL_RECIPIENT }}
         run: |
           python main_bot.py
+
+      - name: Performance DB Commit
+        run: |
+          git config --global user.name "borsa-bot"
+          git config --global user.email "bot@github.com"
+          git add performance.db
+          git commit -m "Auto update performance database" || echo "No changes to commit"
+          git push
