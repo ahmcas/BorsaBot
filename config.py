@@ -52,8 +52,6 @@ TURKISH_STOCKS = [
     "ISCTR.IS",   # İş Bankası C
     "ISDMR.IS",   # İskenderun Demir Çelik
     "KCHOL.IS",   # Koç Holding
-    "KOZAA.IS",   # Koza Anadolu
-    "KOZAL.IS",   # Koza Altın
     "KRDMD.IS",   # Kardemir D
     "MAVI.IS",    # Mavi Giyim
     "MGROS.IS",   # Migros
