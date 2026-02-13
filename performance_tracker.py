@@ -36,51 +36,51 @@ class PerformanceTracker:
         """)
         self.conn.commit()
 
+    def _get_price(self, ticker):
+        try:
+            data = yf.download(ticker, period="1d", progress=False)
+            if data.empty:
+                return None
+            return float(data["Close"].iloc[-1])
+        except:
+            return None
+
     def save_recommendation(self, rec):
         ticker = rec["ticker"]
         today = datetime.now().strftime("%Y-%m-%d")
-
         price = self._get_price(ticker)
 
         self.cursor.execute("""
-            INSERT INTO performance
-            (ticker, recommendation_date, price_at_rec)
+            INSERT INTO performance (ticker, recommendation_date, price_at_rec)
             VALUES (?, ?, ?)
         """, (ticker, today, price))
 
         self.conn.commit()
         return self.cursor.lastrowid
 
-    def _get_price(self, ticker):
-        try:
-            data = yf.download(ticker, period="1d", progress=False)
-            return float(data["Close"].iloc[-1])
-        except:
-            return None
-
     def check_performance(self, days_list):
 
         self.cursor.execute("SELECT * FROM performance")
         rows = self.cursor.fetchall()
-
         updated = []
 
         for row in rows:
             id, ticker, rec_date, p_rec, p7, p14, p30 = row
-            rec_date = datetime.strptime(rec_date, "%Y-%m-%d")
+            rec_date_dt = datetime.strptime(rec_date, "%Y-%m-%d")
 
             for d in days_list:
-                target_date = rec_date + timedelta(days=d)
+                target_date = rec_date_dt + timedelta(days=d)
 
                 if datetime.now() >= target_date:
 
-                    col = f"price_{d}d"
-                    if row[3 + days_list.index(d)] is None:
+                    column_name = f"price_{d}d"
+                    existing_value = row[3 + days_list.index(d)]
 
+                    if existing_value is None:
                         price = self._get_price(ticker)
 
                         self.cursor.execute(
-                            f"UPDATE performance SET {col}=? WHERE id=?",
+                            f"UPDATE performance SET {column_name}=? WHERE id=?",
                             (price, id)
                         )
                         updated.append(ticker)
@@ -112,7 +112,7 @@ class PerformanceTracker:
                     wins += 1
 
         win_rate = round((wins / total) * 100, 2) if total > 0 else 0
-        avg_return = sum(returns) / len(returns) if returns else 0
+        avg_return = round(sum(returns) / len(returns), 2) if returns else 0
 
         return {
             "total": total,
@@ -133,10 +133,10 @@ class PerformanceTracker:
 def generate_performance_email(report, history):
 
     html = f"""
-    <h2>📊 Haftalık Performans Raporu</h2>
+    <h2>📊 Performans Raporu</h2>
     <p><b>Toplam İşlem:</b> {report['total']}</p>
     <p><b>Başarı Oranı:</b> %{report['win_rate']}</p>
-    <p><b>Ortalama Getiri:</b> %{report['avg_return_pct']:.2f}</p>
+    <p><b>Ortalama Getiri:</b> %{report['avg_return_pct']}</p>
     <hr>
     <h3>Son İşlemler</h3>
     """
