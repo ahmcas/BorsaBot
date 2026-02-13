@@ -31,7 +31,7 @@ from performance_tracker import PerformanceTracker, generate_performance_email
 
 # --- İSTEK: SABİT BİLGİLENDİRME METİNLERİ ---
 PUAN_ACIKLAMASI = "Bu sistem, hisseleri teknik ve temel verilerine göre 0-100 arası puanlar; 100 en güçlü al sinyalini temsil eder."
-BILGILENDIRME_NOTU = "Şu anki güncel durum, hisseleri rastgele seçen 'Algoritmik Tarama' sistemidir ve tüm analizler bu temel üzerine inşa edilmiştir."
+BILGILENDIRME_NOTU = "Şu anki güncel durum, hisseleri rastgele seçen 'Algoritmik Tarama' sistemidir ve hep bunun üzerine inşa edelim."
 
 def run_full_analysis():
     print("\n" + "=" * 65)
@@ -61,26 +61,30 @@ def run_full_analysis():
         return False
 
     # 3. Seçim ve Puanlama
-    selected = select_top_stocks(stock_analysis, sector_scores, max_count=3)
-    recommendations = generate_recommendation_text(selected, sector_scores)
-    
-    # Mail içeriğine özel notları enjekte et
-    recommendations['puan_aciklamasi'] = PUAN_ACIKLAMASI
-    recommendations['bilgilendirme_notu'] = BILGILENDIRME_NOTU
+    try:
+        selected = select_top_stocks(stock_analysis, sector_scores, max_count=3)
+        recommendations = generate_recommendation_text(selected, sector_scores)
+        
+        # Mail içeriğine özel notları ekle
+        recommendations['puan_aciklamasi'] = PUAN_ACIKLAMASI
+        recommendations['bilgilendirme_notu'] = BILGILENDIRME_NOTU
+    except Exception as e:
+        print(f"  ❌ Puanlama/Seçim hatası: {e}")
+        selected = []
 
     # 4. Grafik Üretimi
     chart_paths = generate_all_charts(selected) if selected else []
 
-    # 5. Email Gönderimi
+    # 5. Email Gönderimi (ahm.cagil@hotmail.com üzerinden)
     try:
         html_body = generate_html_body(recommendations, chart_paths)
         success = send_email(html_body, chart_paths)
         if success:
             print("  🎉 Email başarıyla iletildi.")
         else:
-            print("  ❌ Email gönderimi başarısız (Kimlik doğrulama hatası olabilir).")
+            print("  ❌ Email gönderimi başarısız (Logları kontrol edin).")
     except Exception as e:
-        print(f"  ❌ Email hatası: {e}")
+        print(f"  ❌ Email hazırlama hatası: {e}")
         success = False
 
     # 6. Performans DB Güncelleme
@@ -88,7 +92,6 @@ def run_full_analysis():
         tracker = PerformanceTracker()
         for rec in selected:
             tracker.save_recommendation(rec)
-            print(f"  💾 Veritabanına kaydedildi: {rec['ticker']}")
         
         # Haftalık Rapor (Pazartesi)
         if datetime.now().weekday() == 0:
@@ -98,7 +101,7 @@ def run_full_analysis():
             send_email(perf_html, subject="📊 Haftalık Performans Raporu")
             
     except Exception as e:
-        print(f"  ❌ Performans takip hatası: {e}")
+        print(f"  ❌ Performans sistemi hatası: {e}")
 
     print("\n" + "=" * 65 + "\n  ✅ İŞLEM TAMAMLANDI\n" + "=" * 65)
     return success
