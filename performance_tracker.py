@@ -41,7 +41,7 @@ class PerformanceTracker:
             data = yf.download(ticker, period="1d", progress=False)
             if data.empty:
                 return None
-            return float(data["Close"].iloc[-1])
+            return float(data["Close"].iloc[-1].item())
         except:
             return None
 
@@ -56,39 +56,32 @@ class PerformanceTracker:
         """, (ticker, today, price))
 
         self.conn.commit()
-        return self.cursor.lastrowid
 
-    def check_performance(self, days_list):
+    def check_performance(self):
 
         self.cursor.execute("SELECT * FROM performance")
         rows = self.cursor.fetchall()
-        updated = []
 
         for row in rows:
             id, ticker, rec_date, p_rec, p7, p14, p30 = row
             rec_date_dt = datetime.strptime(rec_date, "%Y-%m-%d")
 
-            for d in days_list:
+            for d in [7, 14, 30]:
                 target_date = rec_date_dt + timedelta(days=d)
+                column_name = f"price_{d}d"
+                existing_value = row[[7,14,30].index(d)+4]
 
-                if datetime.now() >= target_date:
+                if datetime.now() >= target_date and existing_value is None:
+                    price = self._get_price(ticker)
 
-                    column_name = f"price_{d}d"
-                    existing_value = row[3 + days_list.index(d)]
-
-                    if existing_value is None:
-                        price = self._get_price(ticker)
-
-                        self.cursor.execute(
-                            f"UPDATE performance SET {column_name}=? WHERE id=?",
-                            (price, id)
-                        )
-                        updated.append(ticker)
+                    self.cursor.execute(
+                        f"UPDATE performance SET {column_name}=? WHERE id=?",
+                        (price, id)
+                    )
 
         self.conn.commit()
-        return updated
 
-    def generate_report(self, days=30):
+    def generate_report(self, days):
 
         col = f"price_{days}d"
 
@@ -122,7 +115,7 @@ class PerformanceTracker:
 
     def get_detailed_history(self, limit=20):
         self.cursor.execute("""
-            SELECT ticker, recommendation_date, price_at_rec, price_30d
+            SELECT ticker, recommendation_date, price_at_rec, price_7d, price_14d, price_30d
             FROM performance
             ORDER BY id DESC
             LIMIT ?
@@ -130,10 +123,10 @@ class PerformanceTracker:
         return self.cursor.fetchall()
 
 
-def generate_performance_email(report, history):
+def generate_performance_email(report, history, period):
 
     html = f"""
-    <h2>📊 Performans Raporu</h2>
+    <h2>📊 {period} Performans Raporu</h2>
     <p><b>Toplam İşlem:</b> {report['total']}</p>
     <p><b>Başarı Oranı:</b> %{report['win_rate']}</p>
     <p><b>Ortalama Getiri:</b> %{report['avg_return_pct']}</p>
