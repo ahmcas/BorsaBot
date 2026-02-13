@@ -12,30 +12,31 @@
 # ============================================================
 
 import os
-from datetime import datetime
+import smtplib
 import yfinance as yf
-from performance_tracker import PerformanceTracker
+import matplotlib.pyplot as plt
+
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import smtplib
+from email.mime.image import MIMEImage
+from performance_tracker import PerformanceTracker
 
 
 # ==============================
-# HİSSE LİSTESİ
+# HİSSE LİSTESİ (KOZAL / KOZAA ÇIKARILDI)
 # ==============================
 
 STOCKS = [
     "TCELL.IS",
     "OTKAR.IS",
     "AKSA.IS",
-    "ALARK.IS",
-    "KOZAL.IS",
-    "KOZAA.IS"
+    "ALARK.IS"
 ]
 
 
 # ==============================
-# HİSSE ANALİZİ (HATASIZ)
+# ANALİZ
 # ==============================
 
 def analyze_stock(symbol):
@@ -47,9 +48,14 @@ def analyze_stock(symbol):
 
         close = data["Close"]
 
-        ma20 = float(close.rolling(20).mean().iloc[-1])
-        ma50 = float(close.rolling(50).mean().iloc[-1])
-        last_price = float(close.iloc[-1])
+        ma20 = close.rolling(20).mean().iloc[-1]
+        ma50 = close.rolling(50).mean().iloc[-1]
+        last_price = close.iloc[-1]
+
+        # Scalar dönüşüm
+        ma20 = float(ma20.item())
+        ma50 = float(ma50.item())
+        last_price = float(last_price.item())
 
         score = 0
 
@@ -63,7 +69,8 @@ def analyze_stock(symbol):
         return {
             "symbol": symbol,
             "price": last_price,
-            "score": score
+            "score": score,
+            "data": data
         }
 
     except Exception as e:
@@ -72,30 +79,53 @@ def analyze_stock(symbol):
 
 
 # ==============================
-# EMAIL GÖNDERME
+# GRAFİK ÜRETİM
 # ==============================
 
-def send_email(body, subject):
+def generate_chart(symbol, data):
+    os.makedirs("charts", exist_ok=True)
+
+    plt.figure()
+    plt.plot(data["Close"])
+    plt.title(symbol)
+    plt.xlabel("Tarih")
+    plt.ylabel("Fiyat")
+
+    filename = f"charts/{symbol.replace('.', '_')}.png"
+    plt.savefig(filename)
+    plt.close()
+
+    return filename
+
+
+# ==============================
+# EMAIL
+# ==============================
+
+def send_email(subject, body, image_paths):
+
     sender = os.getenv("MAIL_SENDER")
     password = os.getenv("MAIL_PASSWORD")
     recipient = os.getenv("MAIL_RECIPIENT")
-
-    if not sender or not password or not recipient:
-        print("Mail bilgileri eksik.")
-        return
 
     msg = MIMEMultipart()
     msg["From"] = sender
     msg["To"] = recipient
     msg["Subject"] = subject
 
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(body, "html"))
+
+    for path in image_paths:
+        with open(path, "rb") as f:
+            img = MIMEImage(f.read())
+            img.add_header("Content-Disposition", "attachment", filename=os.path.basename(path))
+            msg.attach(img)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(sender, password)
         server.sendmail(sender, recipient, msg.as_string())
 
-    print("Email başarıyla gönderildi.")
+    print("Email gönderildi.")
 
 
 # ==============================
@@ -105,9 +135,9 @@ def send_email(body, subject):
 def main():
 
     print("🚀 Borsa Bot Başladı")
-    print("=" * 50)
 
     selected = []
+    image_paths = []
 
     # ANALİZ
     for symbol in STOCKS:
@@ -123,14 +153,12 @@ def main():
         print("Seçilen hisse yok.")
         return
 
-    print("\n🏆 Seçilen Hisseler:")
-    for s in selected:
-        print(f"{s['symbol']} | Skor: {s['score']}")
+    # GRAFİK ÜRET
+    for stock in selected:
+        path = generate_chart(stock["symbol"], stock["data"])
+        image_paths.append(path)
 
-    # ==============================
     # PERFORMANCE
-    # ==============================
-
     tracker = PerformanceTracker()
 
     for stock in selected:
@@ -141,10 +169,6 @@ def main():
         )
 
     tracker.update_prices()
-
-    # ==============================
-    # RAPOR
-    # ==============================
 
     report_7 = tracker.generate_report(7)
     report_14 = tracker.generate_report(14)
@@ -163,41 +187,31 @@ def main():
         report = report_7
         period = "7 Gün"
 
-    # ==============================
-    # EMAIL İÇERİĞİ
-    # ==============================
-
-    email_body = "📊 BORSA ANALİZ RAPORU\n"
-    email_body += f"Tarih: {datetime.now().strftime('%d %B %Y')}\n\n"
-
-    email_body += "Seçilen Hisseler:\n"
+    # EMAIL BODY (HTML)
+    body = f"""
+    <h2>📊 Borsa Analiz Raporu</h2>
+    <p>Tarih: {datetime.now().strftime('%d %B %Y')}</p>
+    <h3>Seçilen Hisseler</h3>
+    """
 
     for s in selected:
-        email_body += (
-            f"{s['symbol']} | "
-            f"Skor: {s['score']} | "
-            f"Fiyat: {round(s['price'], 2)}\n"
-        )
+        body += f"<p><b>{s['symbol']}</b> | Skor: {s['score']} | Fiyat: {round(s['price'],2)}</p>"
 
     if report:
-        email_body += "\n"
-        email_body += f"📈 {period} Performans Özeti\n"
-        email_body += f"Toplam İşlem: {report['total']}\n"
-        email_body += f"Başarı Oranı: %{report['win_rate']}\n"
-        email_body += f"Ortalama Getiri: %{report['avg_return']}\n\n"
-
-        email_body += "Detay:\n"
-        for symbol, change in report["history"]:
-            email_body += f"{symbol} → %{change}\n"
-    else:
-        email_body += "\nHenüz ölçülebilir performans verisi yok.\n"
+        body += f"""
+        <h3>📈 {period} Performans</h3>
+        <p>Toplam: {report['total']}</p>
+        <p>Başarı Oranı: %{report['win_rate']}</p>
+        <p>Ortalama Getiri: %{report['avg_return']}</p>
+        """
 
     send_email(
-        email_body,
-        subject=f"📊 Borsa Analiz Raporu - {datetime.now().strftime('%d %b %Y')}"
+        subject=f"📊 Borsa Analiz Raporu - {datetime.now().strftime('%d %b %Y')}",
+        body=body,
+        image_paths=image_paths
     )
 
-    print("\n✅ Bot tamamlandı.")
+    print("✅ Bot tamamlandı.")
 
 
 if __name__ == "__main__":
