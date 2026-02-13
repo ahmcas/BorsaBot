@@ -9,6 +9,9 @@ jobs:
   run-bot:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write   # 🔥 Performance DB push için gerekli
+
     steps:
       - name: Repo çek
         uses: actions/checkout@v3
@@ -37,6 +40,9 @@ jobs:
         run: |
           git config --global user.name "borsa-bot"
           git config --global user.email "bot@github.com"
+
           git add performance.db
-          git commit -m "Auto update performance database" || echo "No changes"
+
+          git diff --cached --quiet || git commit -m "Auto update performance database"
+
           git push
