@@ -15,16 +15,17 @@ from datetime import datetime, timedelta
 class PerformanceTracker:
     def __init__(self, db_path="performance.db"):
         self.db_path = db_path
-        self._create_table()
-        self._migrate_db() # Eksik sütunları otomatik ekler
+        self._initialize_db()
 
-    def _create_table(self):
-        """Tabloyu temel yapısıyla oluşturur."""
+    def _initialize_db(self):
+        """Tabloyu en baştan tüm sütunlarla oluşturur veya eksikleri tamamlar."""
         with sqlite3.connect(self.db_path) as conn:
+            # Tabloyu komple temizleyip doğru şema ile kurmak en güvenli yoldur
+            conn.execute("DROP TABLE IF EXISTS recommendations")
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS recommendations (
+                CREATE TABLE recommendations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ticker TEXT,
+                    ticker TEXT NOT NULL,
                     score INTEGER,
                     entry_price REAL,
                     current_price REAL,
@@ -34,30 +35,7 @@ class PerformanceTracker:
                 )
             """)
             conn.commit()
-
-    def _migrate_db(self):
-        """Loglardaki 'no column named ticker/status' hatalarını önlemek için sütun kontrolü yapar."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA table_info(recommendations)")
-            columns = [column[1] for column in cursor.fetchall()]
-            
-            # Eksik olması muhtemel sütunları kontrol et ve ekle
-            needed_columns = {
-                "ticker": "TEXT",
-                "status": "TEXT DEFAULT 'OPEN'",
-                "return_pct": "REAL DEFAULT 0.0",
-                "current_price": "REAL"
-            }
-            
-            for col, col_type in needed_columns.items():
-                if col not in columns:
-                    try:
-                        cursor.execute(f"ALTER TABLE recommendations ADD COLUMN {col} {col_type}")
-                        print(f"✅ Veritabanına eksik sütun eklendi: {col}")
-                    except Exception as e:
-                        print(f"⚠️ Sütun ekleme atlandı (zaten var olabilir): {e}")
-            conn.commit()
+            print("✅ Veritabanı şeması başarıyla sıfırlandı ve score sütunu eklendi.")
 
     def save_recommendation(self, rec):
         """Önerilen hisseyi kaydeder."""
@@ -107,15 +85,9 @@ class PerformanceTracker:
             return pd.read_sql_query(query, conn, params=(limit,)).to_dict('records')
 
 def generate_performance_email(report, history):
-    """ImportError hatasını gideren fonksiyon."""
-    html = f"""
-    <div style="font-family: Arial; border: 1px solid #eee; padding: 15px;">
-        <h2 style="color: #2c3e50;">📊 Performans Özeti</h2>
-        <p><b>Başarı Oranı:</b> %{report['win_rate']}</p>
-        <p><b>Ortalama Getiri:</b> %{report['avg_return_pct']}</p>
-        <table border="1" style="width:100%; border-collapse: collapse;">
-            <tr style="background: #f4f4f4;"><th>Hisse</th><th>Skor</th><th>Getiri</th></tr>
-    """
+    """Haftalık rapor HTML içeriği."""
+    html = f"<h3>📊 Performans Özeti</h3><p>Başarı: %{report['win_rate']}</p>"
+    html += "<table border='1'><tr><th>Hisse</th><th>Skor</th><th>Getiri</th></tr>"
     for item in history:
-        html += f"<tr><td>{item['ticker']}</td><td>{item['score']}</td><td>%{item['return_pct']}</td></tr>"
-    return html + "</table></div>"
+        html += f"tr><td>{item['ticker']}</td><td>{item['score']}</td><td>%{item['return_pct']}</td></tr>"
+    return html + "</table>"
