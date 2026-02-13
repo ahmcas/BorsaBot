@@ -28,8 +28,12 @@ jobs:
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           MAIL_SENDER: "ahm.cagil@hotmail.com"
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           MAIL_RECIPIENT: "ahm.cagil@gmail.com"
-        run: python main_bot.py
+        run: |
+          # Eğer score hatası devam ediyorsa veritabanını temizle
+          # rm -f performance.db 
+          python main_bot.py
 
       - name: DB Güncelle ve Push Et
         run: |
