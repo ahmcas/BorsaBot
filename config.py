@@ -94,7 +94,7 @@ GLOBAL_STOCKS = [
     "NVDA",   # Nvidia
     "META",   # Meta Platforms
     "TSLA",   # Tesla
-    "BRK.B",  # Berkshire Hathaway
+    "BRK-B",  # Berkshire Hathaway
     "JPM",    # JPMorgan Chase
     "V",      # Visa
     "MA",     # Mastercard
