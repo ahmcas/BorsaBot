@@ -29,7 +29,10 @@ jobs:
 
       - name: Botu çalıştır
         env:
+          # Mevcut anahtarlar
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          # Mail yapılandırması (ahm.cagil@hotmail.com ve ahm.cagil@gmail.com için)
           MAIL_SENDER: ${{ secrets.MAIL_SENDER }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           MAIL_RECIPIENT: ${{ secrets.MAIL_RECIPIENT }}
@@ -38,11 +41,14 @@ jobs:
 
       - name: Performance DB Commit
         run: |
-          git config --global user.name "borsa-bot"
-          git config --global user.email "bot@github.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add performance.db
-
-          git diff --cached --quiet || git commit -m "Auto update performance database"
-
-          git push
+          # Eğer dosya mevcutsa ekle
+          if [ -f performance.db ]; then
+            git add performance.db
+            git diff --cached --quiet || git commit -m "📊 Performans veritabanı güncellendi: $(date +'%Y-%m-%d %H:%M')"
+            git push
+          else
+            echo "performance.db bulunamadı, commit atlanıyor."
+          fi
