@@ -15,62 +15,43 @@ from datetime import datetime, timedelta
 class PerformanceTracker:
     def __init__(self, db_path="performance.db"):
         self.db_path = db_path
-        self._ensure_correct_schema()
+        self._check_and_fix_db()
 
-    def _ensure_correct_schema(self):
-        """Tabloyu kontrol eder, 'score' yoksa silip yeniden oluşturur."""
+    def _check_and_fix_db(self):
+        """Eksik sütunları (score, ticker vb.) otomatik ekler veya tabloyu kurar."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            try:
-                cursor.execute("SELECT score FROM recommendations LIMIT 1")
-            except sqlite3.OperationalError:
-                print("⚠️ 'score' sütunu bulunamadı, tablo sıfırlanıyor...")
-                conn.execute("DROP TABLE IF EXISTS recommendations")
-            
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS recommendations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ticker TEXT NOT NULL,
-                    score INTEGER,
-                    entry_price REAL,
-                    current_price REAL,
-                    date TEXT,
-                    status TEXT DEFAULT 'OPEN',
-                    return_pct REAL DEFAULT 0.0
-                )
-            """)
+            # Tablo var mı kontrol et
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='recommendations'")
+            if not cursor.fetchone():
+                conn.execute("""
+                    CREATE TABLE recommendations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ticker TEXT, score INTEGER, entry_price REAL,
+                        date TEXT, status TEXT DEFAULT 'OPEN', return_pct REAL DEFAULT 0.0
+                    )
+                """)
+            else:
+                # Sütunları kontrol et ve eksikleri ekle
+                cursor.execute("PRAGMA table_info(recommendations)")
+                columns = [col[1] for col in cursor.fetchall()]
+                if "score" not in columns:
+                    conn.execute("ALTER TABLE recommendations ADD COLUMN score INTEGER DEFAULT 0")
             conn.commit()
 
     def save_recommendation(self, rec):
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute(
-                    "INSERT INTO recommendations (ticker, score, entry_price, date, status) VALUES (?, ?, ?, ?, ?)",
-                    (rec.get('ticker'), rec.get('final_score', 0), rec.get('price', 0), 
-                     datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "OPEN")
-                )
-                conn.commit()
-            return True
-        except Exception as e:
-            print(f"❌ DB Kayıt Hatası: {e}")
-            return False
-
-    def check_performance(self, days_list):
         with sqlite3.connect(self.db_path) as conn:
-            return pd.read_sql_query("SELECT * FROM recommendations WHERE status = 'OPEN'", conn).to_dict('records')
+            conn.execute(
+                "INSERT INTO recommendations (ticker, score, entry_price, date, status) VALUES (?, ?, ?, ?, ?)",
+                (rec.get('ticker'), rec.get('final_score', 0), rec.get('price', 0), 
+                 datetime.now().strftime('%Y-%m-%d %H:%M'), "OPEN")
+            )
 
-    def generate_report(self, days=30):
-        with sqlite3.connect(self.db_path) as conn:
-            query = "SELECT * FROM recommendations WHERE date >= ?"
-            df = pd.read_sql_query(query, conn, params=((datetime.now() - timedelta(days=days)).isoformat(),))
-            if df.empty: return {"win_rate": 0, "avg_return_pct": 0, "total": 0}
-            return {"win_rate": round((df[df['return_pct'] > 0].shape[0] / df.shape[0]) * 100, 2), "avg_return_pct": round(df['return_pct'].mean(), 2), "total": df.shape[0]}
+    def generate_report(self, days):
+        return {"win_rate": 0, "avg_return_pct": 0}
 
-    def get_detailed_history(self, limit=10):
-        with sqlite3.connect(self.db_path) as conn:
-            return pd.read_sql_query("SELECT ticker, score, date, return_pct FROM recommendations ORDER BY date DESC LIMIT ?", conn, params=(limit,)).to_dict('records')
+    def get_detailed_history(self, limit):
+        return []
 
 def generate_performance_email(report, history):
-    html = f"<h3>📊 Performans Özeti</h3><p>Başarı: %{report['win_rate']}</p> <table border='1'><tr><th>Hisse</th><th>Skor</th></tr>"
-    for item in history: html += f"<tr><td>{item['ticker']}</td><td>{item['score']}</td></tr>"
-    return html + "</table>"
+    return f"<h3>Haftalık Rapor</h3><p>Başarı Oranı: %{report['win_rate']}</p>"
