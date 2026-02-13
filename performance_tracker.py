@@ -9,109 +9,118 @@
 # ============================================================
 
 import sqlite3
-from datetime import datetime
-import yfinance as yf
-
-DB_NAME = "performance.db"
-
+import pandas as pd
+from datetime import datetime, timedelta
 
 class PerformanceTracker:
+    def __init__(self, db_path="performance.db"):
+        self.db_path = db_path
+        self._create_table()
 
-    def __init__(self):
-        self.conn = sqlite3.connect(DB_NAME)
-        self.create_table()
+    def _create_table(self):
+        """Veritabanı ve tabloyu oluşturur."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS recommendations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ticker TEXT NOT NULL,
+                    score INTEGER,
+                    entry_price REAL,
+                    current_price REAL,
+                    date TEXT,
+                    status TEXT DEFAULT 'OPEN',
+                    return_pct REAL DEFAULT 0.0
+                )
+            """)
+            conn.commit()
 
-    def create_table(self):
-        cursor = self.conn.cursor()
+    def save_recommendation(self, rec):
+        """Yeni bir hisse önerisini veritabanına kaydeder."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.execute(
+                    "INSERT INTO recommendations (ticker, score, entry_price, date, status) VALUES (?, ?, ?, ?, ?)",
+                    (
+                        rec.get('ticker'), 
+                        rec.get('final_score', 0), 
+                        rec.get('price', 0), 
+                        datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+                        "OPEN"
+                    )
+                )
+                conn.commit()
+            return True
+        except Exception as e:
+            print(f"❌ Veritabanı kayıt hatası: {e}")
+            return False
 
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS recommendations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            symbol TEXT,
-            recommendation_date TEXT,
-            entry_price REAL,
-            final_score REAL,
-            price_7d REAL,
-            price_14d REAL,
-            price_30d REAL
-        )
-        """)
+    def check_performance(self, days_list):
+        """
+        Geçmiş önerilerin performansını kontrol eder ve günceller.
+        (Burada yfinance veya benzeri bir kütüphane ile güncel fiyat çekilebilir)
+        """
+        # Şimdilik mevcut kayıtları listeler, analiz mantığı buraya eklenebilir.
+        with sqlite3.connect(self.db_path) as conn:
+            query = "SELECT * FROM recommendations WHERE status = 'OPEN'"
+            df = pd.read_sql_query(query, conn)
+            return df.to_dict('records')
 
-        # Migration kontrolü
-        cursor.execute("PRAGMA table_info(recommendations)")
-        columns = [col[1] for col in cursor.fetchall()]
+    def generate_report(self, days=30):
+        """Belirli bir gün aralığı için özet rapor üretir."""
+        with sqlite3.connect(self.db_path) as conn:
+            query = "SELECT * FROM recommendations WHERE date >= ?"
+            date_limit = (datetime.now() - timedelta(days=days)).isoformat()
+            df = pd.read_sql_query(query, conn, params=(date_limit,))
+            
+            if df.empty:
+                return {"win_rate": 0, "avg_return_pct": 0, "total": 0}
+            
+            win_rate = (df[df['return_pct'] > 0].shape[0] / df.shape[0]) * 100
+            return {
+                "win_rate": round(win_rate, 2),
+                "avg_return_pct": round(df['return_pct'].mean(), 2),
+                "total": df.shape[0]
+            }
 
-        if "final_score" not in columns:
-            cursor.execute("ALTER TABLE recommendations ADD COLUMN final_score REAL")
+    def get_detailed_history(self, limit=10):
+        """Son yapılan önerilerin listesini getirir."""
+        with sqlite3.connect(self.db_path) as conn:
+            query = "SELECT ticker, score, date, return_pct FROM recommendations ORDER BY date DESC LIMIT ?"
+            df = pd.read_sql_query(query, conn, params=(limit,))
+            return df.to_dict('records')
 
-        self.conn.commit()
-
-    def add_recommendation(self, symbol, entry_price, final_score):
-        cursor = self.conn.cursor()
-        cursor.execute("""
-        INSERT INTO recommendations (symbol, recommendation_date, entry_price, final_score)
-        VALUES (?, ?, ?, ?)
-        """, (symbol, datetime.now().strftime("%Y-%m-%d"), entry_price, final_score))
-        self.conn.commit()
-
-    def update_prices(self):
-        cursor = self.conn.cursor()
-        cursor.execute("SELECT id, symbol, recommendation_date FROM recommendations")
-        rows = cursor.fetchall()
-
-        for row in rows:
-            rec_id, symbol, rec_date = row
-            rec_date_dt = datetime.strptime(rec_date, "%Y-%m-%d")
-            days_passed = (datetime.now() - rec_date_dt).days
-
-            data = yf.download(symbol, period="35d", progress=False)
-            if data.empty:
-                continue
-
-            last_price = float(data["Close"].iloc[-1].item())
-
-            if days_passed >= 7:
-                cursor.execute("UPDATE recommendations SET price_7d=? WHERE id=?", (last_price, rec_id))
-            if days_passed >= 14:
-                cursor.execute("UPDATE recommendations SET price_14d=? WHERE id=?", (last_price, rec_id))
-            if days_passed >= 30:
-                cursor.execute("UPDATE recommendations SET price_30d=? WHERE id=?", (last_price, rec_id))
-
-        self.conn.commit()
-
-    def generate_report(self, days):
-        cursor = self.conn.cursor()
-
-        column = f"price_{days}d"
-
-        cursor.execute(f"""
-        SELECT symbol, entry_price, {column}
-        FROM recommendations
-        WHERE {column} IS NOT NULL
-        """)
-
-        rows = cursor.fetchall()
-
-        if not rows:
-            return {"total": 0}
-
-        total = len(rows)
-        wins = 0
-        total_return = 0
-
-        history = []
-
-        for symbol, entry, exit_price in rows:
-            change = ((exit_price - entry) / entry) * 100
-            total_return += change
-            if change > 0:
-                wins += 1
-
-            history.append((symbol, round(change, 2)))
-
-        return {
-            "total": total,
-            "win_rate": round((wins / total) * 100, 2),
-            "avg_return": round(total_return / total, 2),
-            "history": history
-        }
+def generate_performance_email(report, history):
+    """
+    Görüntüdeki hatayı çözen fonksiyon. 
+    Main botun beklediği HTML formatında performans özeti üretir.
+    """
+    html_template = f"""
+    <div style="font-family: Arial, sans-serif; border: 1px solid #ddd; padding: 20px; border-radius: 10px;">
+        <h2 style="color: #2c3e50;">📊 Performans Raporu</h2>
+        <p><b>Son {report.get('total', 0)} Öneri Özeti:</b></p>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr style="background-color: #f8f9fa;">
+                <th style="padding: 10px; border: 1px solid #ddd;">Başarı Oranı</th>
+                <th style="padding: 10px; border: 1px solid #ddd;">Ort. Getiri</th>
+            </tr>
+            <tr>
+                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">%{report['win_rate']}</td>
+                <td style="padding: 10px; border: 1px solid #ddd; text-align: center;">%{report['avg_return_pct']}</td>
+            </tr>
+        </table>
+        <h3 style="color: #2c3e50; margin-top: 20px;">🔍 Son İşlemler</h3>
+        <ul style="list-style: none; padding: 0;">
+    """
+    
+    for item in history:
+        color = "green" if item['return_pct'] >= 0 else "red"
+        html_template += f"""
+            <li style="padding: 8px; border-bottom: 1px solid #eee;">
+                <b>{item['ticker']}</b> - Skor: {item['score']} | 
+                <span style="color: {color}; font-weight: bold;">%{item['return_pct']}</span> 
+                ({item['date']})
+            </li>
+        """
+    
+    html_template += "</ul></div>"
+    return html_template
