@@ -29,15 +29,15 @@ from performance_tracker import PerformanceTracker, generate_performance_email
 
 
 def run_full_analysis():
-    """
-    Tam analiz pipeline'ı çalıştırır.
-    """
+
     print("\n" + "=" * 65)
     print(f"  🚀 BORSA ANALİZ BOT BAŞLANGICI")
     print(f"  📅 {datetime.now().strftime('%d %B %Y, %H:%M:%S')}")
     print("=" * 65)
 
-    # ─── STEP 1: HABER ANALİZİ ─────────────────────────────
+    # ─────────────────────────────────────────
+    # STEP 1: HABER ANALİZİ
+    # ─────────────────────────────────────────
     print("\n📰 ADIM 1: Haber analizi başlıyor...")
     print("-" * 50)
 
@@ -56,7 +56,9 @@ def run_full_analysis():
         sector_scores = {}
         news_data = {"raw_news": []}
 
-    # ─── STEP 2: TEKNİK ANALİZ ─────────────────────────────
+    # ─────────────────────────────────────────
+    # STEP 2: TEKNİK ANALİZ
+    # ─────────────────────────────────────────
     print("\n📈 ADIM 2: Teknik analiz başlıyor...")
     print("-" * 50)
 
@@ -76,7 +78,9 @@ def run_full_analysis():
         print("\n⛔ Hiçbir hisse analiz edilemedi. Bot durduruyor.")
         return False
 
-    # ─── STEP 3: MASTER SCORING & SEÇIM ────────────────────
+    # ─────────────────────────────────────────
+    # STEP 3: SEÇİM
+    # ─────────────────────────────────────────
     print("\n🎯 ADIM 3: Hisse seçimi ve skor hesabı...")
     print("-" * 50)
 
@@ -97,7 +101,9 @@ def run_full_analysis():
         selected = []
         recommendations = {"recommendations": [], "market_mood": "⚪ Belirsiz"}
 
-    # ─── STEP 4: GRAFİK ÜRETIM ─────────────────────────────
+    # ─────────────────────────────────────────
+    # STEP 4: GRAFİK
+    # ─────────────────────────────────────────
     print("\n📊 ADIM 4: Grafik üretimi...")
     print("-" * 50)
 
@@ -109,8 +115,10 @@ def run_full_analysis():
         except Exception as e:
             print(f"  ❌ Grafik üretim hatası: {e}")
 
-    # ─── STEP 5: EMAIL GÖNDERİM ────────────────────────────
-    print("\n📧 ADIM 5: Email hazırlanıyor ve gönderildi...")
+    # ─────────────────────────────────────────
+    # STEP 5: EMAIL
+    # ─────────────────────────────────────────
+    print("\n📧 ADIM 5: Email hazırlanıyor...")
     print("-" * 50)
 
     try:
@@ -118,108 +126,70 @@ def run_full_analysis():
         success = send_email(html_body, chart_paths)
 
         if success:
-            print("\n  🎉 Süreç başarıyla tamamlandı!")
+            print("\n  🎉 Email başarıyla gönderildi!")
         else:
-            print("\n  ⚠️  Email gönderildi ama doğrulama yapılamadı.")
+            print("\n  ⚠️ Email gönderildi ama doğrulama yapılamadı.")
 
     except Exception as e:
         print(f"  ❌ Email hatası: {e}")
         success = False
 
-    # ─── STEP 6: PERFORMANS TAKİBİ ─────────────────────────
+    # ─────────────────────────────────────────
+    # STEP 6: PERFORMANS TAKİBİ (GÜÇLENDİRİLDİ)
+    # ─────────────────────────────────────────
     print("\n📊 ADIM 6: Performans takibi...")
     print("-" * 50)
 
     try:
         tracker = PerformanceTracker()
-        
-        # Bugünün önerilerini kaydet
-        for rec in selected:
-            rec_id = tracker.save_recommendation(rec)
-            print(f"  💾 {rec['ticker']} kaydedildi (ID: {rec_id})")
-        
-        # Geçmiş önerilerin performansını kontrol et
-        print("\n  🔍 Geçmiş performanslar kontrol ediliyor...")
-        perf_results = tracker.check_performance([7, 14, 30])
-        
-        if perf_results:
-            print(f"  ✅ {len(perf_results)} yeni performans hesaplandı")
-            
-            # Haftalık performans raporu üret (her Pazartesi)
-            if datetime.now().weekday() == 0:  # Pazartesi
-                print("\n  📈 Haftalık performans raporu gönderiliyor...")
-                report = tracker.generate_report(30)
-                history = tracker.get_detailed_history(20)
-                
-                perf_html = generate_performance_email(report, history)
-                send_email(
-                    perf_html, 
-                    subject=f"📊 Haftalık Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
-                )
-                print(f"  ✅ Performans raporu gönderildi!")
-                print(f"     Başarı Oranı: {report['win_rate']}%")
-                print(f"     Ort. Getiri: {report['avg_return_pct']:+.2f}%")
+
+        # Yeni önerileri kaydet
+        if selected:
+            for rec in selected:
+                tracker.save_recommendation(rec)
+                print(f"  💾 {rec['ticker']} kaydedildi")
+
+        # Geçmiş önerileri kontrol et
+        new_results = tracker.check_performance([7, 14, 30])
+
+        if new_results:
+            print(f"  ✅ {len(new_results)} performans güncellendi")
+
+        # Haftalık rapor (Pazartesi)
+        if datetime.now().weekday() == 0:
+            report = tracker.generate_report(30)
+            history = tracker.get_detailed_history(20)
+
+            perf_html = generate_performance_email(report, history)
+
+            send_email(
+                perf_html,
+                subject=f"📊 Haftalık Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
+            )
+
+            print(f"  📈 Haftalık rapor gönderildi")
+            print(f"     Başarı Oranı: {report.get('win_rate', 0)}%")
+            print(f"     Ortalama Getiri: {report.get('avg_return_pct', 0):+.2f}%")
         else:
-            print("  ℹ️  Henüz kontrol edilecek geçmiş öneri yok")
-    
+            print("  ℹ️ Haftalık rapor günü değil")
+
     except Exception as e:
         print(f"  ❌ Performans takip hatası: {e}")
-        import traceback
-        traceback.print_exc()
 
-    # ─── SUMMARY ────────────────────────────────────────────
+    # ─────────────────────────────────────────
+    # SUMMARY
+    # ─────────────────────────────────────────
     print("\n" + "=" * 65)
     print(f"  📋 ÖZET")
-    print(f"  📰 Haberler: {len(news_data.get('raw_news', []))} adet analiz edildi")
-    print(f"  📈 Hisseler: {len(stock_analysis)} adet analiz edildi")
-    print(f"  🏆 Seçilen: {len(selected)} hisse")
-    print(f"  📊 Grafik: {len(chart_paths)} adet üretildi")
-    print(f"  📧 Email: {'✅ Gönderildi' if success else '❌ Gönderilmedi'}")
-    print(f"  💾 Performans: {len(selected)} öneri kaydedildi")
+    print(f"  📰 Haberler: {len(news_data.get('raw_news', []))}")
+    print(f"  📈 Hisseler: {len(stock_analysis)}")
+    print(f"  🏆 Seçilen: {len(selected)}")
+    print(f"  📊 Grafik: {len(chart_paths)}")
+    print(f"  📧 Email: {'✅' if success else '❌'}")
     print("=" * 65)
 
     return success
 
 
-def start_scheduler():
-    """
-    Günlük otomatik çalıştırıcıyı başlatır.
-    """
-    print("\n⏰ OTOMATIK ZAMANLAYICI AKTIF")
-    print(f"   Her gün {config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}'de çalışacak.")
-    print("   Durdurmak için: Ctrl + C\n")
-
-    # Her gün belirli saatte çalıştır
-    schedule.every().day.at(
-        f"{config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}"
-    ).do(run_full_analysis)
-
-    # Başlangıçta hemen bir kez çalıştır
-    run_full_analysis()
-
-    # Zamanlayıcıyı kontrol eden loop
-    while True:
-        schedule.run_pending()
-        time.sleep(60)  # Her dakika kontrol et
-
-
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Borsa Analiz Botu")
-    parser.add_argument("--mode", choices=["run", "schedule", "test"],
-                       default="run",
-                       help="run=tek seferlik, schedule=otomatik, test=hızlı test")
-    args = parser.parse_args()
-
-    if args.mode == "test":
-        print("🧪 TEST MODU - Sadece 2 hisse ile hızlı kontrol")
-        # Test modunda sadece 2 hisseyi analiz et
-        config.ALL_STOCKS = ["THYAO.IS", "AAPL"]
-        run_full_analysis()
-
-    elif args.mode == "schedule":
-        start_scheduler()
-
-    else:  # run
-        run_full_analysis()
+    run_full_analysis()
