@@ -53,7 +53,7 @@ def run_full_analysis():
     if selected:
         chart_paths = generate_all_charts(selected)
 
-    # NORMAL ANALİZ MAİLİ
+    # ANALİZ MAİLİ
     html_body = generate_html_body(recommendations, chart_paths)
     send_email(html_body, chart_paths)
 
@@ -64,20 +64,37 @@ def run_full_analysis():
         for rec in selected:
             tracker.save_recommendation(rec)
 
-    tracker.check_performance([7, 14, 30])
+    tracker.check_performance()
 
-    report = tracker.generate_report(30)
-    history = tracker.get_detailed_history(20)
+    report_7 = tracker.generate_report(7)
+    report_14 = tracker.generate_report(14)
+    report_30 = tracker.generate_report(30)
 
-    if report["total"] > 0:
-        perf_html = generate_performance_email(report, history)
+    report = None
+    period = ""
+
+    if report_30["total"] > 0:
+        report = report_30
+        period = "30 Gün"
+    elif report_14["total"] > 0:
+        report = report_14
+        period = "14 Gün"
+    elif report_7["total"] > 0:
+        report = report_7
+        period = "7 Gün"
+
+    if report:
+        history = tracker.get_detailed_history(20)
+        perf_html = generate_performance_email(report, history, period)
+
         send_email(
             perf_html,
-            subject=f"📊 Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
+            subject=f"📊 {period} Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
         )
-        print("📈 Performans raporu gönderildi.")
+
+        print(f"📈 {period} performans raporu gönderildi.")
     else:
-        print("Henüz performans verisi oluşmadı.")
+        print("Henüz ölçülebilir performans verisi yok.")
 
     print("✅ Bot tamamlandı.")
 
