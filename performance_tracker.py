@@ -7,9 +7,9 @@
 # 3) Başarı oranını hesaplar ve raporlar
 # 4) Hangi sinyallerin daha başarılı olduğunu analiz eder
 # ============================================================
+
 import sqlite3
-from datetime import datetime, timedelta
-import json
+from datetime import datetime
 
 
 class PerformanceTracker:
@@ -27,8 +27,10 @@ class PerformanceTracker:
                 date TEXT,
                 ticker TEXT,
                 entry_price REAL,
+                technical_score REAL,
                 final_score REAL,
-                rating TEXT
+                rating TEXT,
+                sector TEXT
             )
         """)
         
@@ -50,15 +52,24 @@ class PerformanceTracker:
             conn.close()
             return 0
         
+        def safe_float(val):
+            try:
+                return float(val) if val else 0.0
+            except:
+                return 0.0
+        
         cursor.execute("""
-            INSERT INTO recommendations (date, ticker, entry_price, final_score, rating)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO recommendations 
+            (date, ticker, entry_price, technical_score, final_score, rating, sector)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (
             datetime.now().strftime("%Y-%m-%d"),
             rec.get("ticker", "N/A"),
             entry_price,
-            float(rec.get("final_score") or rec.get("score") or 0),
-            rec.get("rating", "N/A")
+            safe_float(rec.get("technical_score")),
+            safe_float(rec.get("final_score") or rec.get("score")),
+            rec.get("rating", "N/A"),
+            rec.get("sector", "N/A")
         ))
         
         rec_id = cursor.lastrowid
