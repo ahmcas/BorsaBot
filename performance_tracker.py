@@ -9,7 +9,7 @@
 # ============================================================
 
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime
 import yfinance as yf
 
 DB_NAME = "performance.db"
@@ -19,122 +19,99 @@ class PerformanceTracker:
 
     def __init__(self):
         self.conn = sqlite3.connect(DB_NAME)
-        self.cursor = self.conn.cursor()
-        self._create_table()
+        self.create_table()
 
-    def _create_table(self):
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS performance (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticker TEXT,
-                recommendation_date TEXT,
-                price_at_rec REAL,
-                price_7d REAL,
-                price_14d REAL,
-                price_30d REAL
-            )
+    def create_table(self):
+        cursor = self.conn.cursor()
+
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS recommendations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            symbol TEXT,
+            recommendation_date TEXT,
+            entry_price REAL,
+            final_score REAL,
+            price_7d REAL,
+            price_14d REAL,
+            price_30d REAL
+        )
         """)
-        self.conn.commit()
 
-    def _get_price(self, ticker):
-        try:
-            data = yf.download(ticker, period="1d", progress=False)
-            if data.empty:
-                return None
-            return float(data["Close"].iloc[-1].item())
-        except:
-            return None
+        # Migration kontrolü
+        cursor.execute("PRAGMA table_info(recommendations)")
+        columns = [col[1] for col in cursor.fetchall()]
 
-    def save_recommendation(self, rec):
-        ticker = rec["ticker"]
-        today = datetime.now().strftime("%Y-%m-%d")
-        price = self._get_price(ticker)
-
-        self.cursor.execute("""
-            INSERT INTO performance (ticker, recommendation_date, price_at_rec)
-            VALUES (?, ?, ?)
-        """, (ticker, today, price))
+        if "final_score" not in columns:
+            cursor.execute("ALTER TABLE recommendations ADD COLUMN final_score REAL")
 
         self.conn.commit()
 
-    def check_performance(self):
+    def add_recommendation(self, symbol, entry_price, final_score):
+        cursor = self.conn.cursor()
+        cursor.execute("""
+        INSERT INTO recommendations (symbol, recommendation_date, entry_price, final_score)
+        VALUES (?, ?, ?, ?)
+        """, (symbol, datetime.now().strftime("%Y-%m-%d"), entry_price, final_score))
+        self.conn.commit()
 
-        self.cursor.execute("SELECT * FROM performance")
-        rows = self.cursor.fetchall()
+    def update_prices(self):
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, symbol, recommendation_date FROM recommendations")
+        rows = cursor.fetchall()
 
         for row in rows:
-            id, ticker, rec_date, p_rec, p7, p14, p30 = row
+            rec_id, symbol, rec_date = row
             rec_date_dt = datetime.strptime(rec_date, "%Y-%m-%d")
+            days_passed = (datetime.now() - rec_date_dt).days
 
-            for d in [7, 14, 30]:
-                target_date = rec_date_dt + timedelta(days=d)
-                column_name = f"price_{d}d"
-                existing_value = row[[7,14,30].index(d)+4]
+            data = yf.download(symbol, period="35d", progress=False)
+            if data.empty:
+                continue
 
-                if datetime.now() >= target_date and existing_value is None:
-                    price = self._get_price(ticker)
+            last_price = float(data["Close"].iloc[-1].item())
 
-                    self.cursor.execute(
-                        f"UPDATE performance SET {column_name}=? WHERE id=?",
-                        (price, id)
-                    )
+            if days_passed >= 7:
+                cursor.execute("UPDATE recommendations SET price_7d=? WHERE id=?", (last_price, rec_id))
+            if days_passed >= 14:
+                cursor.execute("UPDATE recommendations SET price_14d=? WHERE id=?", (last_price, rec_id))
+            if days_passed >= 30:
+                cursor.execute("UPDATE recommendations SET price_30d=? WHERE id=?", (last_price, rec_id))
 
         self.conn.commit()
 
     def generate_report(self, days):
+        cursor = self.conn.cursor()
 
-        col = f"price_{days}d"
+        column = f"price_{days}d"
 
-        self.cursor.execute(f"""
-            SELECT price_at_rec, {col}
-            FROM performance
-            WHERE {col} IS NOT NULL
+        cursor.execute(f"""
+        SELECT symbol, entry_price, {column}
+        FROM recommendations
+        WHERE {column} IS NOT NULL
         """)
 
-        rows = self.cursor.fetchall()
+        rows = cursor.fetchall()
+
+        if not rows:
+            return {"total": 0}
 
         total = len(rows)
         wins = 0
-        returns = []
+        total_return = 0
 
-        for rec, future in rows:
-            if rec and future:
-                pct = ((future - rec) / rec) * 100
-                returns.append(pct)
-                if pct > 0:
-                    wins += 1
+        history = []
 
-        win_rate = round((wins / total) * 100, 2) if total > 0 else 0
-        avg_return = round(sum(returns) / len(returns), 2) if returns else 0
+        for symbol, entry, exit_price in rows:
+            change = ((exit_price - entry) / entry) * 100
+            total_return += change
+            if change > 0:
+                wins += 1
+
+            history.append((symbol, round(change, 2)))
 
         return {
             "total": total,
-            "win_rate": win_rate,
-            "avg_return_pct": avg_return
+            "win_rate": round((wins / total) * 100, 2),
+            "avg_return": round(total_return / total, 2),
+            "history": history
         }
-
-    def get_detailed_history(self, limit=20):
-        self.cursor.execute("""
-            SELECT ticker, recommendation_date, price_at_rec, price_7d, price_14d, price_30d
-            FROM performance
-            ORDER BY id DESC
-            LIMIT ?
-        """, (limit,))
-        return self.cursor.fetchall()
-
-
-def generate_performance_email(report, history, period):
-
-    html = f"""
-    <h2>📊 {period} Performans Raporu</h2>
-    <p><b>Toplam İşlem:</b> {report['total']}</p>
-    <p><b>Başarı Oranı:</b> %{report['win_rate']}</p>
-    <p><b>Ortalama Getiri:</b> %{report['avg_return_pct']}</p>
-    <hr>
-    <h3>Son İşlemler</h3>
-    """
-
-    for h in history:
-        html += f"<p>{h[0]} | {h[1]}</p>"
-
-    return html
