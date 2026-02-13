@@ -9,12 +9,18 @@
 # ============================================================
 
 import sqlite3
+import os
 from datetime import datetime
 
 
 class PerformanceTracker:
     def __init__(self, db_path="performance.db"):
         self.db_path = db_path
+        
+        # Eski veritabanını sil (temiz başla)
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+        
         self.init_database()
     
     def init_database(self):
@@ -27,10 +33,7 @@ class PerformanceTracker:
                 date TEXT,
                 ticker TEXT,
                 entry_price REAL,
-                technical_score REAL,
-                final_score REAL,
-                rating TEXT,
-                sector TEXT
+                rating TEXT
             )
         """)
         
@@ -52,24 +55,14 @@ class PerformanceTracker:
             conn.close()
             return 0
         
-        def safe_float(val):
-            try:
-                return float(val) if val else 0.0
-            except:
-                return 0.0
-        
         cursor.execute("""
-            INSERT INTO recommendations 
-            (date, ticker, entry_price, technical_score, final_score, rating, sector)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO recommendations (date, ticker, entry_price, rating)
+            VALUES (?, ?, ?, ?)
         """, (
             datetime.now().strftime("%Y-%m-%d"),
             rec.get("ticker", "N/A"),
             entry_price,
-            safe_float(rec.get("technical_score")),
-            safe_float(rec.get("final_score") or rec.get("score")),
-            rec.get("rating", "N/A"),
-            rec.get("sector", "N/A")
+            rec.get("rating", "N/A")
         ))
         
         rec_id = cursor.lastrowid
@@ -100,6 +93,4 @@ class PerformanceTracker:
 
 
 def generate_performance_email(report, history):
-    html = "<h1>Performans Raporu</h1>"
-    html += f"<p>Toplam Oneri: {report['total_recommendations']}</p>"
-    return html
+    return "<h1>Performans Raporu</h1>"
