@@ -18,9 +18,9 @@ class PerformanceTracker:
         self._initialize_db()
 
     def _initialize_db(self):
-        """Tabloyu en baştan tüm sütunlarla oluşturur veya eksikleri tamamlar."""
+        """Veritabanını tüm sütunlar (score dahil) olacak şekilde sıfırlar."""
         with sqlite3.connect(self.db_path) as conn:
-            # Tabloyu komple temizleyip doğru şema ile kurmak en güvenli yoldur
+            # Şemayı temizleyip en güncel haliyle kuruyoruz
             conn.execute("DROP TABLE IF EXISTS recommendations")
             conn.execute("""
                 CREATE TABLE recommendations (
@@ -35,10 +35,10 @@ class PerformanceTracker:
                 )
             """)
             conn.commit()
-            print("✅ Veritabanı şeması başarıyla sıfırlandı ve score sütunu eklendi.")
+            print("✅ Veritabanı şeması başarıyla sıfırlandı ve 'score' sütunu eklendi.")
 
     def save_recommendation(self, rec):
-        """Önerilen hisseyi kaydeder."""
+        """Hisse önerisini kaydeder."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute(
@@ -64,7 +64,7 @@ class PerformanceTracker:
             return []
 
     def generate_report(self, days=30):
-        """Özet rapor verilerini hazırlar."""
+        """Özet rapor üretir."""
         with sqlite3.connect(self.db_path) as conn:
             query = "SELECT * FROM recommendations WHERE date >= ?"
             date_limit = (datetime.now() - timedelta(days=days)).isoformat()
@@ -79,15 +79,15 @@ class PerformanceTracker:
             }
 
     def get_detailed_history(self, limit=10):
-        """Geçmiş verileri çeker."""
+        """Geçmiş verileri getirir."""
         with sqlite3.connect(self.db_path) as conn:
             query = "SELECT ticker, score, date, return_pct FROM recommendations ORDER BY date DESC LIMIT ?"
             return pd.read_sql_query(query, conn, params=(limit,)).to_dict('records')
 
 def generate_performance_email(report, history):
-    """Haftalık rapor HTML içeriği."""
+    """ImportError hatasını çözen performans mail fonksiyonu."""
     html = f"<h3>📊 Performans Özeti</h3><p>Başarı: %{report['win_rate']}</p>"
     html += "<table border='1'><tr><th>Hisse</th><th>Skor</th><th>Getiri</th></tr>"
     for item in history:
-        html += f"tr><td>{item['ticker']}</td><td>{item['score']}</td><td>%{item['return_pct']}</td></tr>"
+        html += f"<tr><td>{item['ticker']}</td><td>{item['score']}</td><td>%{item['return_pct']}</td></tr>"
     return html + "</table>"
