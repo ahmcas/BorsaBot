@@ -11,60 +11,127 @@
 # 7) Her gün otomatik olarak çalıştırılır
 # ============================================================
 
-import sys
 import os
 from datetime import datetime
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-import config
-from news_analyzer import analyze_all_news
-from technical_analyzer import analyze_all_stocks
-from scorer import select_top_stocks, generate_recommendation_text
-from chart_generator import generate_all_charts
-from mail_sender import generate_html_body, send_email
-from performance_tracker import PerformanceTracker, generate_performance_email
+import yfinance as yf
+from performance_tracker import PerformanceTracker
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import smtplib
 
 
-def run_full_analysis():
+# ==============================
+# HİSSE LİSTESİ
+# ==============================
 
-    print("=" * 60)
-    print("🚀 BORSA ANALİZ BOTU BAŞLADI")
-    print(datetime.now())
-    print("=" * 60)
+STOCKS = [
+    "TCELL.IS",
+    "OTKAR.IS",
+    "AKSA.IS",
+    "ALARK.IS",
+    "KOZAL.IS",
+    "KOZAA.IS"
+]
 
-    # HABER
-    news_data = analyze_all_news()
-    sector_scores = news_data.get("sector_scores", {})
 
-    # TEKNİK
-    stock_analysis = analyze_all_stocks(config.ALL_STOCKS)
+# ==============================
+# BASİT SKOR HESABI
+# ==============================
 
-    if not stock_analysis:
-        print("Hiç hisse analiz edilemedi.")
+def analyze_stock(symbol):
+    data = yf.download(symbol, period="3mo", progress=False)
+
+    if data.empty:
+        return None
+
+    close = data["Close"]
+
+    ma20 = close.rolling(20).mean().iloc[-1]
+    ma50 = close.rolling(50).mean().iloc[-1]
+    last_price = float(close.iloc[-1].item())
+
+    score = 0
+
+    if last_price > ma20:
+        score += 40
+    if last_price > ma50:
+        score += 40
+    if ma20 > ma50:
+        score += 20
+
+    return {
+        "symbol": symbol,
+        "price": last_price,
+        "score": score
+    }
+
+
+# ==============================
+# EMAIL GÖNDERME
+# ==============================
+
+def send_email(body, subject):
+    sender = os.getenv("MAIL_SENDER")
+    password = os.getenv("MAIL_PASSWORD")
+    recipient = os.getenv("MAIL_RECIPIENT")
+
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = recipient
+    msg["Subject"] = subject
+
+    msg.attach(MIMEText(body, "plain"))
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        server.login(sender, password)
+        server.sendmail(sender, recipient, msg.as_string())
+
+
+# ==============================
+# ANA AKIŞ
+# ==============================
+
+def main():
+
+    print("🚀 Borsa Bot Başladı")
+    print("=" * 50)
+
+    selected = []
+
+    for symbol in STOCKS:
+        result = analyze_stock(symbol)
+
+        if result:
+            print(f"{symbol} analiz edildi | Skor: {result['score']}")
+            if result["score"] >= 60:
+                selected.append(result)
+
+    if not selected:
+        print("Seçilen hisse yok.")
         return
 
-    # SEÇİM
-    selected = select_top_stocks(stock_analysis, sector_scores, max_count=3)
-    recommendations = generate_recommendation_text(selected, sector_scores)
+    print("\n🏆 Seçilen Hisseler:")
+    for s in selected:
+        print(f"{s['symbol']} | Skor: {s['score']}")
 
-    # GRAFİK
-    chart_paths = []
-    if selected:
-        chart_paths = generate_all_charts(selected)
+    # ==============================
+    # PERFORMANCE KAYIT
+    # ==============================
 
-    # ANALİZ MAİLİ
-    html_body = generate_html_body(recommendations, chart_paths)
-    send_email(html_body, chart_paths)
-
-    # PERFORMANS
     tracker = PerformanceTracker()
 
-    if selected:
-        for rec in selected:
-            tracker.save_recommendation(rec)
+    for stock in selected:
+        tracker.add_recommendation(
+            symbol=stock["symbol"],
+            entry_price=stock["price"],
+            final_score=stock["score"]
+        )
 
-    tracker.check_performance()
+    tracker.update_prices()
+
+    # ==============================
+    # RAPOR OLUŞTUR
+    # ==============================
 
     report_7 = tracker.generate_report(7)
     report_14 = tracker.generate_report(14)
@@ -83,21 +150,38 @@ def run_full_analysis():
         report = report_7
         period = "7 Gün"
 
+    # ==============================
+    # EMAIL İÇERİĞİ
+    # ==============================
+
+    email_body = "📊 BORSA ANALİZ RAPORU\n"
+    email_body += f"Tarih: {datetime.now().strftime('%d %B %Y')}\n\n"
+
+    email_body += "Seçilen Hisseler:\n"
+
+    for s in selected:
+        email_body += f"{s['symbol']} | Skor: {s['score']} | Fiyat: {round(s['price'],2)}\n"
+
     if report:
-        history = tracker.get_detailed_history(20)
-        perf_html = generate_performance_email(report, history, period)
+        email_body += "\n"
+        email_body += f"📈 {period} Performans Özeti\n"
+        email_body += f"Toplam İşlem: {report['total']}\n"
+        email_body += f"Başarı Oranı: %{report['win_rate']}\n"
+        email_body += f"Ortalama Getiri: %{report['avg_return']}\n\n"
 
-        send_email(
-            perf_html,
-            subject=f"📊 {period} Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
-        )
-
-        print(f"📈 {period} performans raporu gönderildi.")
+        email_body += "Detay:\n"
+        for symbol, change in report["history"]:
+            email_body += f"{symbol} → %{change}\n"
     else:
-        print("Henüz ölçülebilir performans verisi yok.")
+        email_body += "\nHenüz ölçülebilir performans verisi yok.\n"
 
-    print("✅ Bot tamamlandı.")
+    send_email(
+        email_body,
+        subject=f"📊 Borsa Analiz Raporu - {datetime.now().strftime('%d %b %Y')}"
+    )
+
+    print("\n✅ Bot tamamlandı.")
 
 
 if __name__ == "__main__":
-    run_full_analysis()
+    main()
