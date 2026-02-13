@@ -17,8 +17,6 @@
 
 import sys
 import os
-import schedule
-import time
 from datetime import datetime
 
 # Modül yollarını ayarla
@@ -33,7 +31,7 @@ from performance_tracker import PerformanceTracker, generate_performance_email
 
 # --- İSTEK: SABİT BİLGİLENDİRME METİNLERİ ---
 PUAN_ACIKLAMASI = "Bu sistem, hisseleri teknik ve temel verilerine göre 0-100 arası puanlar; 100 en güçlü al sinyalini temsil eder."
-BILGILENDIRME_NOTU = "Şu anki güncel durum, hisseleri rastgele seçen 'Algoritmik Tarama' sistemidir ve hep bunun üzerine inşa edelim."
+BILGILENDIRME_NOTU = "Şu anki güncel durum, hisseleri rastgele seçen 'Algoritmik Tarama' sistemidir ve tüm analizler bu temel üzerine inşa edilmiştir."
 
 def run_full_analysis():
     print("\n" + "=" * 65)
@@ -45,6 +43,7 @@ def run_full_analysis():
     try:
         news_data = analyze_all_news()
         sector_scores = news_data.get("sector_scores", {})
+        print("  ✅ Haber analizi tamamlandı.")
     except Exception as e:
         print(f"  ❌ Haber hatası: {e}")
         sector_scores = {}
@@ -52,6 +51,7 @@ def run_full_analysis():
     # 2. Teknik Analiz
     try:
         stock_analysis = analyze_all_stocks(config.ALL_STOCKS)
+        print(f"  ✅ {len(stock_analysis)} hisse analiz edildi.")
     except Exception as e:
         print(f"  ❌ Teknik hata: {e}")
         stock_analysis = []
@@ -71,14 +71,14 @@ def run_full_analysis():
     # 4. Grafik Üretimi
     chart_paths = generate_all_charts(selected) if selected else []
 
-    # 5. Email Gönderimi (ahm.cagil@hotmail.com üzerinden)
+    # 5. Email Gönderimi
     try:
         html_body = generate_html_body(recommendations, chart_paths)
         success = send_email(html_body, chart_paths)
         if success:
-            print("  ✅ Email başarıyla iletildi.")
+            print("  🎉 Email başarıyla iletildi.")
         else:
-            print("  ❌ Email gönderimi başarısız.")
+            print("  ❌ Email gönderimi başarısız (Kimlik doğrulama hatası olabilir).")
     except Exception as e:
         print(f"  ❌ Email hatası: {e}")
         success = False
@@ -90,8 +90,6 @@ def run_full_analysis():
             tracker.save_recommendation(rec)
             print(f"  💾 Veritabanına kaydedildi: {rec['ticker']}")
         
-        tracker.check_performance([7, 14, 30])
-        
         # Haftalık Rapor (Pazartesi)
         if datetime.now().weekday() == 0:
             report = tracker.generate_report(30)
@@ -100,7 +98,7 @@ def run_full_analysis():
             send_email(perf_html, subject="📊 Haftalık Performans Raporu")
             
     except Exception as e:
-        print(f"  ❌ Performans hatası: {e}")
+        print(f"  ❌ Performans takip hatası: {e}")
 
     print("\n" + "=" * 65 + "\n  ✅ İŞLEM TAMAMLANDI\n" + "=" * 65)
     return success
