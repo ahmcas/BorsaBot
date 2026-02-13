@@ -29,12 +29,12 @@ MAIL_RECIPIENT = os.environ.get("MAIL_RECIPIENT", "alici_adres@gmail.com")  # ke
 
 TURKISH_STOCKS = [
     TURKISH_STOCKS = [
-    "AEFES.IS",  # Anadolu Efes
-    "AGHOL.IS",  # Anadolu Grubu Holding
-    "AHGAZ.IS",  # Ahlatcı Doğalgaz
-    "AKBNK.IS",  # Akbank
-    "AKCNS.IS",  # Akçansa Çimento
-    "AKFGY.IS",  # Akfen GYO
+        "AEFES.IS",  # Anadolu Efes
+        "AGHOL.IS",  # Anadolu Grubu Holding
+        "AHGAZ.IS",  # Ahlatcı Doğalgaz
+        "AKBNK.IS",  # Akbank
+        "AKCNS.IS",  # Akçansa Çimento
+        "AKFGY.IS",  # Akfen GYO
     "AKSA.IS",   # Aksa Enerji
     "AKSEN.IS",  # Aksa Enerji Üretim
     "ALARK.IS",  # Alarko Holding
