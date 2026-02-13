@@ -18,38 +18,55 @@ class PerformanceTracker:
         self._initialize_db()
 
     def _initialize_db(self):
-        """Veritabanını tüm sütunlar (score dahil) olacak şekilde sıfırlar."""
-        with sqlite3.connect(self.db_path) as conn:
-            # Şemayı temizleyip en güncel haliyle kuruyoruz
-            conn.execute("DROP TABLE IF EXISTS recommendations")
-            conn.execute("""
-                CREATE TABLE recommendations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    ticker TEXT NOT NULL,
-                    score INTEGER,
-                    entry_price REAL,
-                    current_price REAL,
-                    date TEXT,
-                    status TEXT DEFAULT 'OPEN',
-                    return_pct REAL DEFAULT 0.0
-                )
-            """)
-            conn.commit()
-            print("✅ Veritabanı şeması başarıyla sıfırlandı ve 'score' sütunu eklendi.")
+        """Veritabanı tablosunu en baştan, tüm sütunlarla birlikte kurar."""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                # Eğer tablo varsa ama score sütunu yoksa, tabloyu silip yeniden kurarız
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(recommendations)")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                if columns and "score" not in columns:
+                    print("⚠️ 'score' sütunu eksik, tablo yeniden oluşturuluyor...")
+                    conn.execute("DROP TABLE IF EXISTS recommendations")
+                
+                # Tabloyu eksiksiz şema ile oluştur
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS recommendations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ticker TEXT NOT NULL,
+                        score INTEGER,
+                        entry_price REAL,
+                        current_price REAL,
+                        date TEXT,
+                        status TEXT DEFAULT 'OPEN',
+                        return_pct REAL DEFAULT 0.0
+                    )
+                """)
+                conn.commit()
+                print("✅ Veritabanı şeması hazır (score sütunu dahil).")
+        except Exception as e:
+            print(f"❌ Veritabanı başlatma hatası: {e}")
 
     def save_recommendation(self, rec):
-        """Hisse önerisini kaydeder."""
+        """Yeni bir hisse önerisini veritabanına kaydeder."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute(
                     "INSERT INTO recommendations (ticker, score, entry_price, date, status) VALUES (?, ?, ?, ?, ?)",
-                    (rec.get('ticker'), rec.get('final_score', 0), rec.get('price', 0), 
-                     datetime.now().strftime('%Y-%m-%d %H:%M:%S'), "OPEN")
+                    (
+                        rec.get('ticker'), 
+                        rec.get('final_score', 0), 
+                        rec.get('price', 0), 
+                        datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+                        "OPEN"
+                    )
                 )
                 conn.commit()
+                print(f"💾 Veritabanına kaydedildi: {rec.get('ticker')}")
             return True
         except Exception as e:
-            print(f"❌ Veritabanı kayıt hatası: {e}")
+            print(f"❌ Veritabanı kayıt hatası (save_recommendation): {e}")
             return False
 
     def check_performance(self, days_list):
@@ -64,7 +81,6 @@ class PerformanceTracker:
             return []
 
     def generate_report(self, days=30):
-        """Özet rapor üretir."""
         with sqlite3.connect(self.db_path) as conn:
             query = "SELECT * FROM recommendations WHERE date >= ?"
             date_limit = (datetime.now() - timedelta(days=days)).isoformat()
@@ -79,15 +95,15 @@ class PerformanceTracker:
             }
 
     def get_detailed_history(self, limit=10):
-        """Geçmiş verileri getirir."""
         with sqlite3.connect(self.db_path) as conn:
             query = "SELECT ticker, score, date, return_pct FROM recommendations ORDER BY date DESC LIMIT ?"
             return pd.read_sql_query(query, conn, params=(limit,)).to_dict('records')
 
 def generate_performance_email(report, history):
-    """ImportError hatasını çözen performans mail fonksiyonu."""
+    """Haftalık rapor HTML içeriği."""
     html = f"<h3>📊 Performans Özeti</h3><p>Başarı: %{report['win_rate']}</p>"
-    html += "<table border='1'><tr><th>Hisse</th><th>Skor</th><th>Getiri</th></tr>"
+    html += "<table border='1' style='width:100%; border-collapse: collapse;'>"
+    html += "<tr style='background:#f4f4f4;'><th>Hisse</th><th>Skor</th><th>Getiri</th></tr>"
     for item in history:
         html += f"<tr><td>{item['ticker']}</td><td>{item['score']}</td><td>%{item['return_pct']}</td></tr>"
     return html + "</table>"
