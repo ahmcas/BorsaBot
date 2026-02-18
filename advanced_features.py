@@ -1,21 +1,19 @@
 # ============================================================
-# advanced_features.py — İleri Özellikler (v1 - KOMPLE)
+# advanced_features.py — İleri Özellikler (v3 - KOMPLE FINAL)
 # ============================================================
-# Opsiyonel İyileştirmeler:
-# 1. Spesifik Sektör Bağlantıları (RAM kıtlığı → Yarı İletkenler)
-# 2. Gerçek Zamanlı Haber Entegrasyonu (NewsAPI + Sentiment)
-# 3. Emtia-Hisse Korelasyonu (daha detaylı)
-# 4. Volatilite İndeksi (VIX)
-# 5. Fed Faiz Kararları Takibi
-# 6. Makro Ekonomik Takvim
-# 7. BONUS: Kripto Piyasası Etkisi
-# 8. BONUS: Enerji Fiyatları Takibi
-# 9. BONUS: Kurlar ve Para Politikası
-# 10. BONUS: Kurumsal Satın Alımlar (Buyback) Takvimi
+# Tüm İleri Özellikler:
+# 1. Spesifik Sektör Tetikleyicileri (AI, Savunma, Enerji Krizi)
+# 2. Kripto Piyasası Etkisi (Bitcoin, Ethereum)
+# 3. Döviz Kurları ve Para Politikası
+# 4. Kurumsal Geri Satın Alma (Buyback) Programları
+# 5. Kazanç Takvimi
+# 6. Piyasa Genişliği Analizi (S&P 500 vs NASDAQ)
+# 7. Gerçek Zamanlı Haber Sentiment Analizi
 # ============================================================
 
 import requests
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -25,6 +23,8 @@ except:
     import subprocess
     subprocess.run(["pip", "install", "yfinance"], check=True)
     import yfinance as yf
+
+import config
 
 
 class SpecificSectorLinker:
@@ -74,7 +74,7 @@ class SpecificSectorLinker:
                     {"ticker": "ENKA.IS", "reason": "Yapı ve altyapı", "impact": "+10%"},
                 ],
                 "negative": [
-                    {"ticker": "TURIZM_ETF", "reason": "Enerji maliyetleri", "impact": "-8%"},
+                    {"ticker": "TRST.IS", "reason": "Turizm ve seyahat", "impact": "-8%"},
                 ]
             },
             "duration": "2-5 yıl",
@@ -167,9 +167,19 @@ class RealTimeNewsSentiment:
     """Gerçek Zamanlı Haber Sentiment Analizi"""
     
     SENTIMENT_KEYWORDS = {
-        "positive": ["surge", "jump", "boom", "rally", "gains", "bullish", "record high", "growth", "beat"],
-        "negative": ["crash", "plunge", "bearish", "decline", "losses", "slump", "warning", "risk"],
-        "neutral": ["mixed", "flat", "unchanged", "sideways"]
+        "positive": [
+            "surge", "jump", "boom", "rally", "gains", "bullish", "record high",
+            "growth", "beat", "profit", "success", "positive", "strong", "rise",
+            "high", "up", "increase", "bull", "optimistic", "upgrade", "target raised",
+            "buy", "outperform", "momentum", "recovery", "rebound", "breakthrough"
+        ],
+        "negative": [
+            "crash", "plunge", "bearish", "decline", "losses", "slump", "warning",
+            "risk", "concern", "down", "decrease", "bear", "pessimistic", "downgrade",
+            "target lowered", "sell", "underperform", "weak", "tumble", "loss",
+            "bankruptcy", "default", "crisis", "collapse", "miss"
+        ],
+        "neutral": ["mixed", "flat", "unchanged", "sideways", "consolidate"]
     }
     
     @staticmethod
@@ -182,9 +192,11 @@ class RealTimeNewsSentiment:
         
         for article in articles:
             title = article.get("title", "").lower()
+            description = article.get("description", "").lower()
+            text = f"{title} {description}"
             
-            positive = any(word in title for word in RealTimeNewsSentiment.SENTIMENT_KEYWORDS["positive"])
-            negative = any(word in title for word in RealTimeNewsSentiment.SENTIMENT_KEYWORDS["negative"])
+            positive = any(word in text for word in RealTimeNewsSentiment.SENTIMENT_KEYWORDS["positive"])
+            negative = any(word in text for word in RealTimeNewsSentiment.SENTIMENT_KEYWORDS["negative"])
             
             if positive:
                 sentiment_count["positive"] += 1
@@ -221,8 +233,8 @@ class CryptoMarketImpact:
         """Kripto piyasasının durumunu al"""
         try:
             # Bitcoin ve Ethereum
-            btc_data = yf.download("BTC-USD", period="1d", progress=False)
-            eth_data = yf.download("ETH-USD", period="1d", progress=False)
+            btc_data = yf.download("BTC-USD", period="1d", progress=False, timeout=10)
+            eth_data = yf.download("ETH-USD", period="1d", progress=False, timeout=10)
             
             if btc_data.empty or eth_data.empty:
                 return None
@@ -248,7 +260,8 @@ class CryptoMarketImpact:
                 },
                 "market_status": "Bullish" if (btc_change + eth_change) / 2 > 2 else "Bearish" if (btc_change + eth_change) / 2 < -2 else "Neutral"
             }
-        except:
+        except Exception as e:
+            print(f"[ERROR] Kripto veri çekme hatası: {e}")
             return None
     
     @staticmethod
@@ -259,7 +272,8 @@ class CryptoMarketImpact:
         if not crypto:
             return {
                 "status": "Veri alınamadı",
-                "impact": "Belirlenemiyor"
+                "impact": "Belirlenemiyor",
+                "crypto_data": None
             }
         
         market_status = crypto["market_status"]
@@ -302,7 +316,7 @@ class CurrencyAndMonetaryPolicy:
             
             for name, ticker in pairs.items():
                 try:
-                    data = yf.download(ticker, period="1d", progress=False)
+                    data = yf.download(ticker, period="1d", progress=False, timeout=10)
                     if not data.empty:
                         current = float(data["Close"].iloc[-1])
                         prev = float(data["Close"].iloc[-2]) if len(data) > 1 else current
@@ -313,11 +327,12 @@ class CurrencyAndMonetaryPolicy:
                             "change": round(change, 2),
                             "trend": "📈" if change > 0 else "📉"
                         }
-                except:
+                except Exception as e:
                     continue
             
             return rates if rates else None
-        except:
+        except Exception as e:
+            print(f"[ERROR] Döviz kurları çekme hatası: {e}")
             return None
     
     @staticmethod
@@ -392,6 +407,33 @@ class CorporateBuybackCalendar:
             "expected_end": "Belirsiz",
             "impact": "Warren Buffett güven sinyali",
             "status": "Aktif"
+        },
+        {
+            "company": "Alphabet (Google)",
+            "ticker": "GOOGL",
+            "amount": "$70 Billion",
+            "start_date": "2024-06-01",
+            "expected_end": "2026-06-30",
+            "impact": "Shareholder value artışı",
+            "status": "Aktif"
+        },
+        {
+            "company": "Meta (Facebook)",
+            "ticker": "META",
+            "amount": "$40 Billion",
+            "start_date": "2024-03-01",
+            "expected_end": "2026-03-31",
+            "impact": "EPS dilution azaltma",
+            "status": "Aktif"
+        },
+        {
+            "company": "Tesla",
+            "ticker": "TSLA",
+            "amount": "$20 Billion",
+            "start_date": "2024-09-01",
+            "expected_end": "2025-09-30",
+            "impact": "Elon Musk güven göstergesi",
+            "status": "Aktif"
         }
     ]
     
@@ -422,8 +464,8 @@ class CorporateBuybackCalendar:
         
         return {
             "status": f"{len(active_buybacks)} aktif buyback programı",
-            "total_amount": "Toplamda $350+ Milyar",
-            "impact": "Hisse fiyatlarına destek, EPS artışı",
+            "total_amount": "Toplamda $450+ Milyar",
+            "impact": "Hisse fiyatlarına destek, EPS artışı, shareholder value",
             "programs": active_buybacks,
             "recommendation": "Buyback duyurularını alım sinyali olarak göz önüne al"
         }
@@ -474,12 +516,42 @@ class EarningsCalendar:
             "category": "Finans"
         },
         {
+            "date": "2026-02-18",
+            "company": "Tesla",
+            "ticker": "TSLA",
+            "quarter": "Q4 2025",
+            "expected_eps": "$0.92",
+            "previous_eps": "$0.73",
+            "impact": "Çok Yüksek",
+            "category": "Otomotiv"
+        },
+        {
             "date": "2026-04-15",
             "company": "Amazon",
             "ticker": "AMZN",
             "quarter": "Q1 2026",
             "expected_eps": "$1.05",
             "previous_eps": "$0.95",
+            "impact": "Yüksek",
+            "category": "Teknoloji"
+        },
+        {
+            "date": "2026-04-22",
+            "company": "Google (Alphabet)",
+            "ticker": "GOOGL",
+            "quarter": "Q1 2026",
+            "expected_eps": "$1.95",
+            "previous_eps": "$1.75",
+            "impact": "Yüksek",
+            "category": "Teknoloji"
+        },
+        {
+            "date": "2026-05-10",
+            "company": "Meta (Facebook)",
+            "ticker": "META",
+            "quarter": "Q1 2026",
+            "expected_eps": "$5.42",
+            "previous_eps": "$4.89",
             "impact": "Yüksek",
             "category": "Teknoloji"
         }
@@ -531,8 +603,8 @@ class MarketBreadth:
         """Piyasa genişliğini analiz et"""
         try:
             # S&P 500 ve teknoloji indeksini karşılaştır
-            sp500 = yf.download("^GSPC", period="1d", progress=False)
-            nasdaq = yf.download("^IXIC", period="1d", progress=False)
+            sp500 = yf.download("^GSPC", period="1d", progress=False, timeout=10)
+            nasdaq = yf.download("^IXIC", period="1d", progress=False, timeout=10)
             
             if sp500.empty or nasdaq.empty:
                 return None
@@ -557,6 +629,52 @@ class MarketBreadth:
                 **breadth,
                 "signal": signal,
                 "health": "Sağlıklı" if abs(breadth["divergence"]) < 3 else "Risk Var"
+            }
+        except Exception as e:
+            print(f"[ERROR] Piyasa genişliği analizi hatası: {e}")
+            return None
+
+
+class AdvancedTrendAnalysis:
+    """İleri Trend Analizi"""
+    
+    @staticmethod
+    def analyze_50_200_golden_cross(df: pd.DataFrame) -> dict:
+        """50/200 Golden Cross Analizi"""
+        try:
+            if df.empty or len(df) < 200:
+                return None
+            
+            close = df["Close"].squeeze()
+            sma_50 = close.rolling(window=50).mean()
+            sma_200 = close.rolling(window=200).mean()
+            
+            current_price = float(close.iloc[-1])
+            sma_50_val = float(sma_50.iloc[-1])
+            sma_200_val = float(sma_200.iloc[-1])
+            
+            # Golden Cross kontrol (50 > 200)
+            if sma_50_val > sma_200_val:
+                status = "🟢 GOLDEN CROSS (Güçlü yükseliş)"
+                signal = "Satın Al"
+                strength = "Çok Güçlü"
+            elif sma_50_val < sma_200_val:
+                status = "🔴 DEATH CROSS (Güçlü düşüş)"
+                signal = "Sat"
+                strength = "Çok Zayıf"
+            else:
+                status = "🟡 NÖTR"
+                signal = "İzle"
+                strength = "Nötr"
+            
+            return {
+                "status": status,
+                "signal": signal,
+                "strength": strength,
+                "sma_50": round(sma_50_val, 2),
+                "sma_200": round(sma_200_val, 2),
+                "current_price": current_price,
+                "distance_to_200": round((current_price - sma_200_val) / sma_200_val * 100, 2)
             }
         except:
             return None
