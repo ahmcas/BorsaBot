@@ -1,238 +1,219 @@
 # ============================================================
-# main_bot.py — ANA BOT (Orchestrator) [UPDATED]
+# main_bot.py — Ana Orchestrator (v4 - KÜRESEL ANALİZ)
 # ============================================================
 
-import sys
 import os
+import sys
+from datetime import datetime
 import schedule
 import time
-from datetime import datetime
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Local imports
 import config
-from news_analyzer import analyze_all_news
 from technical_analyzer import analyze_all_stocks
+from news_analyzer import analyze_news
 from scorer import select_top_stocks, generate_recommendation_text
-from chart_generator import generate_all_charts
 from mail_sender import generate_html_body, send_email
-from performance_tracker import PerformanceTracker, generate_performance_email
+from chart_generator import generate_charts
+from global_market_analyzer import (
+    run_global_analysis,
+    USDebtAnalyzer,
+    CommodityAnalyzer,
+    GeopoliticalAnalyzer,
+    ExchangeHolidayTracker
+)
 
 
-def enrich_recommendations(selected, stock_analysis):
-    """
-    selected'e stock_analysis'den detaylı verileri ekle
-    """
-    for stock in selected:
-        ticker = stock.get("ticker")
-        
-        # Aynı ticker'ı stock_analysis'de bul
-        for analysis in stock_analysis:
-            if analysis.get("ticker") == ticker:
-                # Teknik veriler ekle
-                stock["dataframe"] = analysis.get("dataframe")
-                stock["rsi"] = analysis.get("rsi")
-                stock["macd_histogram"] = analysis.get("macd_histogram")
-                stock["bollinger_position"] = analysis.get("bollinger_position")
-                stock["momentum_pct"] = analysis.get("momentum_pct")
-                stock["sma_short"] = analysis.get("sma_short")
-                stock["sma_long"] = analysis.get("sma_long")
-                stock["fibonacci"] = analysis.get("fibonacci", {})
-                stock["signals"] = analysis.get("signals", [])
-                break
+def run_analysis():
+    """Ana analiz fonksiyonu"""
+    print("\n" + "="*70)
+    print(f"🚀 BORSA ANALİZİ BAŞLANIYOR - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("="*70)
     
-    return selected
-
-
-def run_full_analysis():
-    """
-    Tam analiz pipeline'ı çalıştırır.
-    """
-    print("\n" + "=" * 65)
-    print(f"  🚀 BORSA ANALİZ BOT BAŞLANGICI")
-    print(f"  📅 {datetime.now().strftime('%d %B %Y, %H:%M:%S')}")
-    print("=" * 65)
-
-    # ─── STEP 1: HABER ANALİZİ ─────────────────────────────
-    print("\n📰 ADIM 1: Haber analizi başlıyor...")
-    print("-" * 50)
-
-    try:
-        news_data = analyze_all_news()
-        sector_scores = news_data.get("sector_scores", {})
-        top_sectors = news_data.get("top_sectors", [])
-        risk_sectors = news_data.get("risk_sectors", [])
-
-        print(f"\n  📊 Analiz edilen haber sayısı: {len(news_data.get('raw_news', []))}")
-        print(f"  🏆 En olumlu sektörler: {top_sectors}")
-        print(f"  ⚠️  Risk sektörler: {risk_sectors}")
-
-    except Exception as e:
-        print(f"  ❌ Haber analizi hatası: {e}")
-        sector_scores = {}
-        news_data = {"raw_news": []}
-
-    # ─── STEP 2: TEKNİK ANALİZ ─────────────────────────────
-    print("\n📈 ADIM 2: Teknik analiz başlıyor...")
-    print("-" * 50)
-
-    try:
-        stock_analysis = analyze_all_stocks(config.ALL_STOCKS)
-
-        print(f"\n  ✅ {len(stock_analysis)} hisse analiz edildi.")
-        print(f"\n  📋 Top 5 Teknik Skor:")
-        for s in stock_analysis[:5]:
-            print(f"     {s.get('ticker', 'N/A'):15s} → Skor: {s.get('score', 0)}/100")
-
-    except Exception as e:
-        print(f"  ❌ Teknik analiz hatası: {e}")
-        stock_analysis = []
-
-    if not stock_analysis:
-        print("\n⛔ Hiçbir hisse analiz edilemedi. Bot durduruyor.")
+    # ADIM 0: Küresel Piyasa Analizi
+    print("\n🌍 ADIM 0: Küresel Piyasa Analizi")
+    print("-" * 70)
+    global_analysis = run_global_analysis()
+    
+    # ADIM 1: Teknik Analiz
+    print("\n📊 ADIM 1: Teknik Analiz")
+    print("-" * 70)
+    all_analysis = analyze_all_stocks(config.ALL_STOCKS)
+    
+    if not all_analysis:
+        print("❌ Analiz başarısız!")
+        return False
+    
+    valid_stocks = [s for s in all_analysis if not s.get("skip")]
+    print(f"✅ {len(valid_stocks)} hisse analiz edildi")
+    
+    # ADIM 2: Haber Analizi
+    print("\n📰 ADIM 2: Haber Analizi")
+    print("-" * 70)
+    sector_scores = analyze_news()
+    
+    if not sector_scores:
+        print("⚠️  Haber analizi yapılamadı, varsay��lan değerler kullanılıyor")
+        sector_scores = {"genel": 0.0}
+    else:
+        print(f"✅ {len(sector_scores)} sektör analiz edildi")
+        for sector, score in sorted(sector_scores.items(), key=lambda x: x[1], reverse=True)[:5]:
+            print(f"   {sector}: {score:+.3f}")
+    
+    # ADIM 3: Skor Hesaplama
+    print("\n🎯 ADIM 3: Skor Hesaplama & Seçim")
+    print("-" * 70)
+    selected = select_top_stocks(all_analysis, sector_scores, max_count=3)
+    
+    if selected:
+        print(f"✅ {len(selected)} hisse seçildi:")
+        for i, stock in enumerate(selected, 1):
+            print(f"   {i}. {stock.get('ticker')} - Skor: {stock.get('final_score', 0):.1f}")
+    else:
+        print("⚠️  Alım sinyali bulunamadı")
+    
+    # ADIM 4: Yükseliş Trendine Giren Hisseler (Support → Resistance)
+    print("\n📈 ADIM 4: Trend Analizi (Support → Resistance Geçişleri)")
+    print("-" * 70)
+    trend_opportunities = analyze_trend_reversals(all_analysis)
+    
+    if trend_opportunities:
+        print(f"✅ {len(trend_opportunities)} hisse yükseliş trendine girdi:")
+        for opp in trend_opportunities[:5]:
+            print(f"   {opp['ticker']} - Destek: {opp['support']}, Direnç: {opp['resistance']}")
+    else:
+        print("⚠️  Trend geçişi bulunamadı")
+    
+    # ADIM 5: Recommendation Oluştur
+    print("\n📋 ADIM 5: Recommendation Oluştur")
+    print("-" * 70)
+    recommendations = generate_recommendation_text(selected, sector_scores)
+    recommendations["global_analysis"] = global_analysis
+    recommendations["trend_opportunities"] = trend_opportunities
+    
+    print(f"✅ {len(recommendations.get('recommendations', []))} hisse önerisi hazırlandı")
+    
+    # ADIM 6: Grafikler Oluştur
+    print("\n📈 ADIM 6: Grafikler Oluştur")
+    print("-" * 70)
+    chart_paths = []
+    
+    for stock in selected:
+        try:
+            ticker = stock.get("ticker", "")
+            df = stock.get("dataframe", None)
+            
+            if df is not None and not df.empty:
+                chart_path = generate_charts(ticker, df)
+                if chart_path and os.path.exists(chart_path):
+                    chart_paths.append(chart_path)
+                    print(f"✅ {ticker} grafiği oluşturuldu")
+        except Exception as e:
+            print(f"⚠️  {ticker} grafik hatası: {e}")
+    
+    # ADIM 7: HTML Email Oluştur
+    print("\n📧 ADIM 7: HTML Email Oluştur")
+    print("-" * 70)
+    html_body = generate_html_body(recommendations, chart_paths)
+    print(f"✅ HTML email oluşturuldu ({len(html_body)} karakter)")
+    
+    # ADIM 8: Email Gönder
+    print("\n🚀 ADIM 8: Email Gönder")
+    print("-" * 70)
+    subject = f"📊 Borsa Analiz - {datetime.now().strftime('%d %b %Y')}"
+    
+    if send_email(html_body, chart_paths, subject):
+        print("✅ Analiz tamamlandı ve email gönderildi!")
+        return True
+    else:
+        print("❌ Email gönderme başarısız!")
         return False
 
-    # ─── STEP 3: MASTER SCORING & SEÇIM ────────────────────
-    print("\n🎯 ADIM 3: Hisse seçimi ve skor hesabı...")
-    print("-" * 50)
 
-    try:
-        selected = select_top_stocks(stock_analysis, sector_scores, max_count=3)
-        
-        # ✨ YENİ: Seçilenlere detaylı veri ekle
-        selected = enrich_recommendations(selected, stock_analysis)
-
-        if selected:
-            print(f"\n  🏆 {len(selected)} hisse seçildi:")
-            for s in selected:
-                print(f"     {s.get('ticker', 'N/A'):15s} → {s.get('rating', '')} | Skor: {s.get('final_score', 0)}")
-        else:
-            print("\n  ⚠️  Bu gün yeterli alım sinyali bulunamadı.")
-
-        recommendations = generate_recommendation_text(selected, sector_scores)
-
-    except Exception as e:
-        print(f"  ❌ Scoring hatası: {e}")
-        import traceback
-        traceback.print_exc()
-        selected = []
-        recommendations = {"recommendations": [], "market_mood": "⚪ Belirsiz"}
-
-    # ─── STEP 4: GRAFİK ÜRETIM ─────────────────────────────
-    print("\n📊 ADIM 4: Grafik üretimi...")
-    print("-" * 50)
-
-    chart_paths = []
-    if selected:
-        try:
-            chart_paths = generate_all_charts(selected)
-            print(f"\n  ✅ {len(chart_paths)} grafik üretildi.")
-        except Exception as e:
-            print(f"  ❌ Grafik üretim hatası: {e}")
-
-    # ─── STEP 5: EMAIL GÖNDERİM ────────────────────────────
-    print("\n📧 ADIM 5: Email hazırlanıyor ve gönderildi...")
-    print("-" * 50)
-
-    try:
-        html_body = generate_html_body(recommendations, chart_paths)
-        success = send_email(html_body, chart_paths)
-
-        if success:
-            print("\n  🎉 Süreç başarıyla tamamlandı!")
-        else:
-            print("\n  ⚠️  Email gönderildi ama doğrulama yapılamadı.")
-
-    except Exception as e:
-        print(f"  ❌ Email hatası: {e}")
-        import traceback
-        traceback.print_exc()
-        success = False
-
-    # ─── STEP 6: PERFORMANS TAKİBİ ─────────────────────────
-    print("\n📊 ADIM 6: Performans takibi...")
-    print("-" * 50)
-
-    try:
-        tracker = PerformanceTracker()
-        
-        for rec in selected:
-            rec_id = tracker.save_recommendation(rec)
-            print(f"  💾 {rec['ticker']} kaydedildi (ID: {rec_id})")
-        
-        print("\n  🔍 Geçmiş performanslar kontrol ediliyor...")
-        perf_results = tracker.check_performance([7, 14, 30])
-        
-        if perf_results:
-            print(f"  ✅ {len(perf_results)} yeni performans hesaplandı")
-            
-            if datetime.now().weekday() == 0:
-                print("\n  📈 Haftalık performans raporu gönderiliyor...")
-                report = tracker.generate_report(30)
-                history = tracker.get_detailed_history(20)
-                
-                perf_html = generate_performance_email(report, history)
-                send_email(
-                    perf_html, 
-                    subject=f"📊 Haftalık Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
-                )
-                print(f"  ✅ Performans raporu gönderildi!")
-        else:
-            print("  ℹ️  Henüz kontrol edilecek geçmiş öneri yok")
+def analyze_trend_reversals(all_analysis):
+    """
+    Yükseliş trendine giren ve destek seviyesini dirençe dönüştüren hisseleri bul
+    """
+    opportunities = []
     
-    except Exception as e:
-        print(f"  ❌ Performans takip hatası: {e}")
-        import traceback
-        traceback.print_exc()
+    for stock in all_analysis:
+        try:
+            if stock.get("skip"):
+                continue
+            
+            ticker = stock.get("ticker", "")
+            df = stock.get("dataframe", None)
+            
+            if df is None or df.empty:
+                continue
+            
+            close = df["Close"].squeeze()
+            
+            # Son 60 günün low'u (destek)
+            support_level = float(close.tail(60).min())
+            
+            # Son 60 günün high'ı (direnç)
+            resistance_level = float(close.tail(60).max())
+            
+            # Şu anki fiyat
+            current_price = float(close.iloc[-1])
+            
+            # Destek seviyesini geçip yükselmişse
+            if current_price > support_level * 1.02:  # Destek üzerinde
+                
+                # SMA 50 yukarıda mı?
+                sma_50 = float(close.rolling(window=50).mean().iloc[-1])
+                
+                # Momentum pozitif mi?
+                momentum = ((close.iloc[-1] - close.iloc[-10]) / close.iloc[-10] * 100)
+                
+                if current_price > sma_50 and momentum > 0:
+                    opportunities.append({
+                        "ticker": ticker,
+                        "sector": stock.get("sector", "genel"),
+                        "current_price": round(current_price, 2),
+                        "support": round(support_level, 2),
+                        "resistance": round(resistance_level, 2),
+                        "momentum": round(momentum, 2),
+                        "breakout_strength": round((current_price - support_level) / support_level * 100, 2),
+                        "potential_upside": round((resistance_level - current_price) / current_price * 100, 2)
+                    })
+        
+        except Exception as e:
+            pass
+    
+    # En güçlü kırılışları seç
+    opportunities.sort(key=lambda x: x["breakout_strength"], reverse=True)
+    
+    return opportunities[:10]  # Top 10
 
-    # ─── SUMMARY ────────────────────────────────────────────
-    print("\n" + "=" * 65)
-    print(f"  📋 ÖZET")
-    print(f"  📰 Haberler: {len(news_data.get('raw_news', []))} adet analiz edildi")
-    print(f"  📈 Hisseler: {len(stock_analysis)} adet analiz edildi")
-    print(f"  🏆 Seçilen: {len(selected)} hisse")
-    print(f"  📊 Grafik: {len(chart_paths)} adet üretildi")
-    print(f"  📧 Email: {'✅ Gönderildi' if success else '❌ Gönderilmedi'}")
-    print(f"  💾 Performans: {len(selected)} öneri kaydedildi")
-    print("=" * 65)
 
-    return success
-
-
-def start_scheduler():
-    """
-    Günlük otomatik çalıştırıcıyı başlatır.
-    """
-    print("\n⏰ OTOMATIK ZAMANLAYICI AKTIF")
-    print(f"   Her gün {config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}'de çalışacak.")
-    print("   Durdurmak için: Ctrl + C\n")
-
-    schedule.every().day.at(
-        f"{config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}"
-    ).do(run_full_analysis)
-
-    run_full_analysis()
-
+def schedule_bot():
+    """Bot'u belirli saatlerde çalıştır"""
+    
+    # Pazartesi-Cuma 09:30'de çalıştır
+    schedule.every().monday.at(f"{config.DAILY_RUN_HOUR:02d}:{config.DAILY_RUN_MINUTE:02d}").do(run_analysis)
+    schedule.every().tuesday.at(f"{config.DAILY_RUN_HOUR:02d}:{config.DAILY_RUN_MINUTE:02d}").do(run_analysis)
+    schedule.every().wednesday.at(f"{config.DAILY_RUN_HOUR:02d}:{config.DAILY_RUN_MINUTE:02d}").do(run_analysis)
+    schedule.every().thursday.at(f"{config.DAILY_RUN_HOUR:02d}:{config.DAILY_RUN_MINUTE:02d}").do(run_analysis)
+    schedule.every().friday.at(f"{config.DAILY_RUN_HOUR:02d}:{config.DAILY_RUN_MINUTE:02d}").do(run_analysis)
+    
+    print(f"✅ Bot çizelgesi ayarlandı: Her gün {config.DAILY_RUN_HOUR:02d}:{config.DAILY_RUN_MINUTE:02d}")
+    
+    # Scheduler'ı çalıştır
     while True:
         schedule.run_pending()
         time.sleep(60)
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Borsa Analiz Botu")
-    parser.add_argument("--mode", choices=["run", "schedule", "test"],
-                       default="run",
-                       help="run=tek seferlik, schedule=otomatik, test=hızlı test")
-    args = parser.parse_args()
-
-    if args.mode == "test":
-        print("🧪 TEST MODU - Sadece 2 hisse ile hızlı kontrol")
-        config.ALL_STOCKS = ["THYAO.IS", "AAPL"]
-        run_full_analysis()
-
-    elif args.mode == "schedule":
-        start_scheduler()
-
+    
+    if len(sys.argv) > 1 and sys.argv[1] == "once":
+        # Tek seferlik çalıştır
+        print("🎯 Tek seferlik analiz modu")
+        run_analysis()
+    
     else:
-        run_full_analysis()
+        # Scheduler modu
+        print("📅 Scheduler modu (Ctrl+C ile durdur)")
+        schedule_bot()
