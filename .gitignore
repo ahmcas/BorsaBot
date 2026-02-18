@@ -1,0 +1,119 @@
+# ============================================================
+# .gitignore — Git Ignore Rules (KOMPLE)
+# ============================================================
+
+# ═══════════════════════════════════════════════════════════
+# ENVIRONMENT & SECRETS
+# ═══════════════════════════════════════════════════════════
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.pem
+*.key
+*.crt
+
+# ═══════════════════════════════════════════════════════════
+# PYTHON
+# ═══════════════════════════════════════════════════════════
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ═══════════════════════════════════════════════════════════
+# VIRTUAL ENVIRONMENTS
+# ═══════════════════════════════════════════════════════════
+venv/
+ENV/
+env/
+.venv/
+virtualenv/
+.virtualenv
+
+# ═══════════════════════════════════════════════════════════
+# IDE & EDITORS
+# ═══════════════════════════════════════════════════════════
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+.atom/
+.DS_Store
+
+# ═══════════════════════════════════════════════════════════
+# PROJECT SPECIFIC
+# ═══════════════════════════════════════════════════════════
+charts/
+logs/
+*.log
+performance.db
+*.db
+.cache/
+*.tmp
+*.temp
+temp/
+cache/
+
+# ═══════════════════════════════════════════════════════════
+# OS FILES
+# ═══════════════════════════════════════════════════════════
+Thumbs.db
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# ═══════════════════════════════════════════════════════════
+# PYTEST & TESTING
+# ═══════════════════════════════════════════════════════════
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# ═══════════════════════════════════════════════════════════
+# JUPYTER NOTEBOOK
+# ═══════════════════════════════════════════════════════════
+.ipynb_checkpoints
+*.ipynb
+
+# ═══════════════════════════════════════════════════════════
+# MISC
+# ═══════════════════════════════════════════════════════════
+.env.swp
+*.bak
+*.orig
+*.rej
+.venv.bak
