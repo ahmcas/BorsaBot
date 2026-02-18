@@ -1,5 +1,5 @@
 # ============================================================
-# config.py — Tüm ayarlar burada
+# config.py — Tüm Ayarlar (v4 - KOMPLE FINAL)
 # ============================================================
 # Bu dosyada API anahtarlarını ve tüm konfigurasyonu düzenleyin.
 # ============================================================
@@ -46,109 +46,72 @@ MAIL_RECIPIENT = os.environ.get("MAIL_RECIPIENT", "recipient@gmail.com")
 # ═══════════════════════════════════════════════════════════
 # BIST 100 - TÜRKIYE BORSA HİSSELERİ
 # ═══════════════════════════════════════════════════════════
-# Çoklu kaynaklardan veri alabilir
-# Kaynak sırası: Yahoo Finance → Alpha Vantage → IEX → Polygon
 
 TURKISH_STOCKS = [
-    # Top 10 - En Büyük Hisseler
+    # Bankalar
     "AKBANK.IS",   # Akbank
     "GARAN.IS",    # Garanti BBVA
     "ISA.IS",      # İş Bankası
     "YBANK.IS",    # Yapı ve Kredi
+    "TEBNK.IS",    # TEB Bankası
+    "HALKB.IS",    # Halkbank
+    "PBANK.IS",    # Pera Bank
+    
+    # Sigorta
+    "DOAS.IS",     # Doğa Sigorta
+    "ACSEL.IS",    # Açık Sigorta
+    
+    # Telekom
     "TCELL.IS",    # Turkcell
     "TTKOM.IS",    # Türk Telekom
+    
+    # Enerji
+    "TUPAS.IS",    # Türkiye Petrol Rafinerileri
+    "AKSA.IS",     # Aksa Enerji
+    "ENKA.IS",     # Enka
+    "AYGAZ.IS",    # Aygaz
+    "SODA.IS",     # Soda Sanayii
+    "CCHOL.IS",    # Çelebi
+    "KRDMD.IS",    # Karadeniz Holding
+    
+    # Üretim ve Teknoloji
     "ASELS.IS",    # Aselsan
     "SISE.IS",     # Şişecam
-    "TUPAS.IS",    # Türkiye Petrol
-    "ARÇEL.IS",    # Arçelik
-
-    # 11-20: Büyük Hisseler
-    "ENKA.IS",     # Enka
-    "EKGYO.IS",    # Emlak Konut
     "VESTEL.IS",   # Vestel
-    "ULKER.IS",    # Ülker
-    "TOASY.IS",    # Toasan
-    "PETKM.IS",    # Petkim
-    "BLDYR.IS",    # Bilder
-    "AYGAZ.IS",    # Aygaz
-    "KORDSA.IS",   # Kordsa
+    "ARÇEL.IS",    # Arçelik
     "OTKAR.IS",    # Otokar
-
-    # 21-30: Orta Büyüklük
-    "AKSA.IS",     # Aksa Enerji
     "FROTO.IS",    # Ford Otomotiv
-    "TEBNK.IS",    # TEB Bank
-    "HALKB.IS",    # Halkbank
-    "DOAS.IS",     # Doğa Sigorta
+    "KORDSA.IS",   # Kordsa
+    
+    # Gıda ve Perakende
+    "ULKER.IS",    # Ülker Bisküvi
     "PENGD.IS",    # Penguen
-    "SODA.IS",     # Soda Sanayii
-    "RSGYO.IS",    # Resorpia
-    "ORMA.IS",     # Orma
-    "TRST.IS",     # Türsab
-
-    # 31-40: Orta Küçüklük
-    "PBANK.IS",    # Pera Bank
-    "ACSEL.IS",    # Açık Sigorta
-    "CCHOL.IS",    # Çelebi
-    "KRDMD.IS",    # Karadeniz
-    "TLMAN.IS",    # Turk Limanları
-    "DYHOL.IS",    # Doğan Holding
-    "TKFEN.IS",    # TkFen
+    "ULUSE.IS",    # Ulusal
     "KOTON.IS",    # Koton
+    
+    # Gayrimenkul ve İnşaat
+    "EKGYO.IS",    # Emlak Konut
+    "BLDYR.IS",    # Bilder
+    "SRVGY.IS",    # Seren Gayrimenkul
+    "RSGYO.IS",    # Resorpia
+    "TKFEN.IS",    # TkFen
+    "ORMA.IS",     # Orma
+    "ARSAN.IS",    # Arsan
+    
+    # Turizm
+    "TRST.IS",     # Türsab
     "NTHOL.IS",    # Net Turizm
     "CARSI.IS",    # Çarşı
-
-    # 41-50: Küçük Hisseler
+    
+    # Diğer
+    "DYHOL.IS",    # Doğan Holding
+    "TLMAN.IS",    # Turk Limanları
     "MERKO.IS",    # Merkez
-    "ULUSE.IS",    # Ulusal
-    "KAYNK.IS",    # Kaynak
-    "LCDHO.IS",    # Leçar
-    "GOLTS.IS",    # Goldaş
-    "HMROL.IS",    # Hamrolı
-    "MRSB.IS",     # Marsan
-    "ARSAN.IS",    # Arsan
-    "YAPI.IS",     # Yapı
     "ASMK.IS",     # Asım
-
-    # 51+ : En Küçük Hisseler
+    "HATEK.IS",    # Hatek
+    "PETKM.IS",    # Petkim
     "KLVT.IS",     # Kültür Yatırım
     "YKBNK.IS",    # YK Bankası
-    "BANVT.IS",    # Banvit
-    "FICOH.IS",    # Ficohsa
-    "BNTAS.IS",    # Bürokrat
-    "INDAG.IS",    # İnda
-    "OZKGY.IS",    # Özak Gayrimenkul
-    "YAPRK.IS",    # Yapıkredi Konut
-    "INSGYO.IS",   # İnş Gayrimenkul
-    "ARYAP.IS",    # Ar Yapı
-    "KRGYO.IS",    # Karma
-    "SRVGY.IS",    # Seren
-    "KORDS.IS",    # Kordindir
-    "IPEKE.IS",    # İpek Enerji
-    "HATEK.IS",    # Hatek
-    "TAVHL.IS",    # Tavahlı
-    "ENJSA.IS",    # Enerjisa
-    "EGEEN.IS",    # Egeen Enerji
-    "GEMIN.IS",    # Gemin
-    "PETKE.IS",    # Petkim
-    "EGLET.IS",    # Egeli
-    "ARBOS.IS",    # Arbos
-    "NTTUR.IS",    # Turtur
-    "MARTI.IS",    # Martı
-    "KNC.IS",      # Konç
-    "KSTUR.IS",    # Ksu
-    "BJKAS.IS",    # Bilmece
-    "ARENA.IS",    # Arena
-    "BAGFS.IS",    # Bagfas
-    "ALBRK.IS",    # Albayrak
-    "TURSH.IS",    # Türsüz
-    "HERTT.IS",    # Hertz
-    "TRTUR.IS",    # Turtur
-    "HAPPF.IS",    # Happy
-    "PLAVT.IS",    # Plavaton
-    "SEFKR.IS",    # Sefkirin
-    "TKFYE.IS",    # Takfiye
-    "DIFSH.IS",    # Difesh
 ]
 
 # ═══════════════════════════════════════════════════════════
@@ -357,7 +320,7 @@ VERBOSE = True
 QUICK_TEST_MODE = False
 QUICK_TEST_STOCKS = ["AKBANK.IS", "AAPL"]
 
-# ═════════���═════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 # RENKLER & STİL
 # ═══════════════════════════════════════════════════════════
 
@@ -386,7 +349,7 @@ API_RATE_LIMIT = 0.5
 CONCURRENT_REQUESTS = 5
 
 # ═══════════════════════════════════════════════════════════
-# NOTIFICATION AYARLARI (Future)
+# NOTIFICATION AYARLARI
 # ═══════════════════════════════════════════════════════════
 
 # Push notification (Pushover, Slack, vb)
@@ -403,6 +366,159 @@ DATABASE_FILE = "performance.db"
 # Veritabanını gözlemle
 ENABLE_DATABASE = True
 
+# ═══════���═══════════════════════════════════════════════════
+# KÜRESEL ANALİZ AYARLARI
+# ═══════════════════════════════════════════════════════════
+
+# ABD Dış Borcu
+TRACK_US_DEBT = True
+
+# Emtia Fiyatları
+TRACK_COMMODITIES = True
+TRACK_GOLD = True
+TRACK_SILVER = True
+TRACK_COPPER = True
+TRACK_OIL = True
+TRACK_NATURAL_GAS = True
+
+# Emtia Rekorları
+TRACK_COMMODITY_RECORDS = True
+
+# Jeopolitik Olaylar
+TRACK_GEOPOLITICS = True
+
+# Borsa Tatilleri
+TRACK_EXCHANGE_HOLIDAYS = True
+
+# ═══════════════════════════════════════════════════════════
+# İLERİ KÜRESEL ANALİZ AYARLARI
+# ═══════════════════════════════════════════════════════════
+
+# Makro Ekonomik Takvim
+TRACK_MACRO_CALENDAR = True
+TRACK_FED_MEETINGS = True
+TRACK_ECB_MEETINGS = True
+TRACK_BOJ_MEETINGS = True
+
+# VIX Volatilite İndeksi
+TRACK_VIX = True
+
+# Sektör Tavsiyesi (Makro + VIX temelli)
+ENABLE_SECTOR_RECOMMENDATIONS = True
+
+# ��══════════════════════════════════════════════════════════
+# İLERİ ÖZELLİKLER AYARLARI
+# ═══════════════════════════════════════════════════════════
+
+# Spesifik Tetikleyici İzleme
+ENABLE_SPECIFIC_TRIGGERS = True
+TRACK_AI_BOOM = True
+TRACK_ENERGY_CRISIS = True
+TRACK_GEOPOLITICS_SPECIFIC = True
+TRACK_RECESSION = True
+TRACK_WAR_PREPARATION = True
+TRACK_INTEREST_RATES = True
+
+# Kripto Piyasası İzleme
+ENABLE_CRYPTO_ANALYSIS = True
+TRACK_BITCOIN = True
+TRACK_ETHEREUM = True
+
+# Döviz ve Para Politikası
+ENABLE_CURRENCY_ANALYSIS = True
+TRACK_USD_STRENGTH = True
+TRACK_EUR_USD = True
+TRACK_GBP_USD = True
+TRACK_JPY_USD = True
+
+# Kurumsal Hareketler
+ENABLE_BUYBACK_TRACKING = True
+ENABLE_EARNINGS_CALENDAR = True
+
+# Piyasa Genişliği
+ENABLE_BREADTH_ANALYSIS = True
+TRACK_SP500 = True
+TRACK_NASDAQ = True
+
+# ═══════════════════════════════════════════════════════════
+# EMAIL TASARIM AYARLARI
+# ═══════════════════════════════════════════════════════════
+
+# Email maksimum boyutu (KB)
+MAX_EMAIL_SIZE = 50
+
+# Gösterilecek Email bölümleri (True/False)
+SHOW_MARKET_MOOD = True
+SHOW_GLOBAL_ANALYSIS = True
+SHOW_MACRO_CALENDAR = True
+SHOW_VIX = True
+SHOW_COMMODITIES = True
+SHOW_COMMODITY_RECORDS = True
+SHOW_GEOPOLITICS = True
+SHOW_HOLIDAYS = True
+SHOW_TRENDS = True
+SHOW_CORRELATIONS = True
+SHOW_SPECIFIC_TRIGGERS = True
+SHOW_CRYPTO = True
+SHOW_CURRENCIES = True
+SHOW_BUYBACKS = True
+SHOW_EARNINGS = True
+SHOW_BREADTH = True
+SHOW_RECOMMENDATIONS = True
+SHOW_TECHNICAL_INDICATORS = True
+SHOW_FIBONACCI = True
+SHOW_CHARTS = True
+SHOW_SUPPLY_CHAIN = True
+SHOW_DISCLAIMER = True
+
+# Bölüm sırası (önem sırasına göre)
+SECTION_ORDER = [
+    "header",
+    "market_mood",
+    "global_analysis",
+    "macro_events",
+    "vix",
+    "commodities",
+    "commodity_records",
+    "geopolitics",
+    "holidays",
+    "trends",
+    "specific_triggers",
+    "crypto",
+    "currencies",
+    "buybacks",
+    "earnings",
+    "breadth",
+    "recommendations",
+    "technical_indicators",
+    "fibonacci",
+    "correlations",
+    "supply_chain",
+    "charts",
+    "disclaimer",
+    "footer"
+]
+
+# ═══════════════════════════════════════════════════════════
+# TEDARIK ZİNCİRİ AYARLARI
+# ═══════════════════════════════════════════════════════════
+
+# RAM Kıtlığı Tracking
+TRACK_RAM_SHORTAGE = True
+RAM_SHORTAGE_STATUS = "normal"  # normal, shortage, excess
+
+# Çip Kıtlığı Tracking
+TRACK_CHIP_SHORTAGE = True
+CHIP_SHORTAGE_STATUS = "normal"
+
+# Gemi Gecikmesi Tracking
+TRACK_SHIPPING_DELAYS = True
+SHIPPING_DELAY_STATUS = "normal"
+
+# Enerji Krizi Tracking
+TRACK_ENERGY_CRISIS = True
+ENERGY_CRISIS_STATUS = "normal"
+
 # ═══════════════════════════════════════════════════════════
 # VERIFICATION
 # ═══════════════════════════════════════════════════════════
@@ -417,4 +533,135 @@ if not MAIL_PASSWORD or MAIL_PASSWORD == "YOUR_APP_PASSWORD_HERE":
 if not MAIL_SENDER or MAIL_SENDER == "your_email@gmail.com":
     print(f"{COLOR_WARNING}⚠️  Email gönderici adresi tanımlanmamış{COLOR_RESET}")
 
-print(f"{COLOR_INFO}✅ Config yüklendi{COLOR_RESET}")
+# ═══════════════════════════════════════════════════════════
+# HATA KONTROL
+# ═══════════════════════════════════════════════════════════
+
+try:
+    assert DAILY_RUN_HOUR >= 0 and DAILY_RUN_HOUR <= 23, "Saat 0-23 arasında olmalı"
+    assert DAILY_RUN_MINUTE >= 0 and DAILY_RUN_MINUTE <= 59, "Dakika 0-59 arasında olmalı"
+    assert LOOKBACK_DAYS > 0, "Günler pozitif olmalı"
+    assert FIBONACCI_LOOKBACK > 0, "Fibonacci lookback pozitif olmalı"
+    assert MAX_SAME_SECTOR > 0, "Max sektör sayısı pozitif olmalı"
+    assert MIN_SCORE_THRESHOLD >= 0 and MIN_SCORE_THRESHOLD <= 100, "Threshold 0-100 arasında olmalı"
+except AssertionError as e:
+    print(f"{COLOR_ERROR}❌ Config hatası: {e}{COLOR_RESET}")
+    exit(1)
+
+# ════════════════════════════════════════════════════��══════
+# BAŞARILI BAŞLANGAÇ
+# ═══════════════════════════════════════════════════════════
+
+print(f"{COLOR_SUCCESS}✅ Config yüklendi başarıyla{COLOR_RESET}")
+print(f"{COLOR_INFO}📊 Analiz edilen hisseler: {len(ALL_STOCKS)}{COLOR_RESET}")
+print(f"{COLOR_INFO}⏰ Günlük çalışma saati: {DAILY_RUN_HOUR:02d}:{DAILY_RUN_MINUTE:02d}{COLOR_RESET}")
+print(f"{COLOR_INFO}📧 Email gönderici: {MAIL_SENDER}{COLOR_RESET}")
+
+# ═══════════════════════════════════════════════════════════
+# AÇIKLAMALAR VE NOTLAR
+# ═════════════════════════════════════════════════���═════════
+
+"""
+KURULUM TALIMLARI:
+
+1. API Anahtarlarını Al:
+   - NewsAPI: https://newsapi.org/register (Ücretsiz)
+   - Alpha Vantage: https://www.alphavantage.co (Ücretsiz, 5 çağrı/dk)
+   - Polygon.io: https://polygon.io (Ücretsiz)
+
+2. Gmail Kurulumu:
+   - 2FA etkinleştir: https://myaccount.google.com/security
+   - Uygulama Şifresi oluştur: https://myaccount.google.com/apppasswords
+   - MAIL_SENDER ve MAIL_PASSWORD ortam değişkenlerine ekle
+
+3. Ortam Değişkenleri Ayarla (.env dosyası):
+   NEWS_API_KEY=xxxxx
+   ALPHA_VANTAGE_KEY=xxxxx
+   MAIL_SENDER=your_email@gmail.com
+   MAIL_PASSWORD=your_app_password
+   MAIL_RECIPIENT=recipient@gmail.com
+
+4. Çalıştır:
+   python main_bot.py once      # Tek seferlik test
+   python main_bot.py            # Scheduler modu
+
+ÖZELLİKLER:
+
+Teknik Analiz:
+✅ RSI, MACD, Bollinger Bands, SMA, Fibonacci, Momentum
+
+Temel Analiz:
+✅ Haber Sentiment, Sektor Analizi, Makro Olaylar
+
+Küresel Analiz:
+✅ ABD Borcu, Emtia, Jeopolitik, Borsa Tatilleri
+✅ Makro Ekonomik Takvim, VIX, Sektör Tavsiyesi
+
+İleri Özellikler:
+✅ Spesifik Tetikleyiciler (AI, Savunma, Enerji)
+✅ Kripto Analizi, Döviz Kurları, Buyback Programları
+✅ Kazanç Takvimi, Piyasa Genişliği
+
+Email:
+✅ Profesyonel HTML tasarım
+✅ Responsive grid layout
+✅ Detaylı analiz ve göstergeler
+✅ Grafik entegrasyonu
+
+Veritabanı:
+✅ Performans takibi
+✅ Tarihsel veri depolama
+✅ Kazanç raporu
+
+AYARLAMALAR:
+
+Hisse Ekleme/Çıkarma:
+- TURKISH_STOCKS ve GLOBAL_STOCKS listelerini düzenle
+
+Analiz Sıklığı:
+- DAILY_RUN_HOUR ve DAILY_RUN_MINUTE değiştir
+
+Email Bölümleri:
+- SHOW_* ayarlarını True/False yap
+
+Teknik Göstergeler:
+- RSI_PERIOD, MACD_*, BOLLINGER_*, SMA_* değerleri değiştir
+
+Skor Ağırlıkları:
+- WEIGHT_* değerlerini güncelle (toplam 100 olmalı)
+
+Veritabanı:
+- DATABASE_FILE ve ENABLE_DATABASE ayarla
+
+Log Ayarları:
+- LOG_FILE ve LOG_LEVEL düzenle
+
+SORUN GİDERME:
+
+Email göndermiyor?
+→ MAIL_SENDER, MAIL_PASSWORD, MAIL_RECIPIENT kontrol et
+→ Gmail'de 2FA aktif mı?
+→ Uygulama şifresi doğru mu?
+
+Veri çekmiyor?
+→ API anahtarları doğru mu?
+→ İnternet bağlantısı var mı?
+→ Rate limits'e ulaştın mı?
+
+Analiz çalışmıyor?
+→ Config.py hataları kontrol et
+→ Log dosyasını oku
+→ VERBOSE = True yap, debug mod etkinleştir
+
+GÜVENLİK NOTU:
+
+- API anahtarlarını .env dosyasına koy
+- GitHub'a commit etme!
+- MAIL_PASSWORD hassas bilgidir
+- Ortam değişkenlerini kullan: os.environ.get()
+
+LİSANS:
+
+Bu bot yatırım tavsiyesi DEĞİLDİR.
+Tüm kararlarınızı profesyonel danışmanlık ile alın.
+"""
