@@ -14,150 +14,147 @@ MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "APP_PASSWORD_BURAYA")
 MAIL_RECIPIENT = os.environ.get("MAIL_RECIPIENT", "alici_adres@gmail.com")
 
 # ═══════════════════════════════════════════════════════════
-# BIST 100 - TÜRKIYE BORSA HISSELERI (100 hisse)
+# BIST 100 - TÜRKIYE BORSA HISSELERI (100 HISSE)
 # ═══════════════════════════════════════════════════════════
 
 TURKISH_STOCKS = [
-    # Bankalar & Finans (15)
+    # 1-10: Bankalar
     "AKBANK.IS",   # Akbank
     "GARAN.IS",    # Garanti BBVA
     "ISA.IS",      # İş Bankası
-    "INDOG.IS",    # İnfo İnşaat Holding
     "YBANK.IS",    # Yapı ve Kredi Bank
-    "SFIN.IS",     # Schnider Finans
-    "TKFEN.IS",    # TkFen Gayrimenkul
     "TEBNK.IS",    # TEB Bank
     "HALKB.IS",    # Halkbank
-    "KLVT.IS",     # Kültür Yatırım
-    "KREDI.IS",    # Kredi Katılım
     "PBANK.IS",    # Pera Bank
-    "ALBRK.IS",    # Albayrak Group
-    "SAFAK.IS",    # Şafak Yatırım
-    "AKTIF.IS",    # Aktif Finans
+    "KLVT.IS",     # Kültür Yatırım
+    "FICOH.IS",    # Ficohsa
+    "BNTAS.IS",    # Bürokrat
     
-    # Sigorta (5)
+    # 11-20: Finans & Holding
+    "TLMAN.IS",    # Turk Limanları
+    "DYHOL.IS",    # Doğan Holding
+    "KORDSA.IS",   # Kordsa
+    "INDAG.IS",    # İnda
+    "DOHOL.IS",    # Doğan Holding Enerji
+    "ALBRK.IS",    # Albayrak
+    "YKBNK.IS",    # YK Bankası
+    "BANVT.IS",    # Banvit
+    "BUCIM.IS",    # Buçim
+    "ORTAK.IS",    # Ortak
+    
+    # 21-30: Sigorta
     "DOAS.IS",     # Doğa Sigorta
     "ACSEL.IS",    # Açık Sigorta
-    "AEGON.IS",    # Aegon Ödeme
-    "XYAPI.IS",    # Xyapı Sigorta
-    "RSGUP.IS",    # Resepsiyon
+    "ANELE.IS",    # Anele
+    "TRWF.IS",     # Turkcell Vodafone
+    "OZKGY.IS",    # Özak Gayrimenkul
+    "ARENA.IS",    # Arena Medya
+    "BAGFS.IS",    # Bagfas
+    "ATATP.IS",    # Ataturk
+    "ADHA.IS",     # Adha
+    "ALTIN.IS",    # Altın Yönetim
     
-    # Telekomunikasyon (3)
+    # 31-40: Telekomunikasyon
     "TCELL.IS",    # Turkcell
     "TTKOM.IS",    # Türk Telekom
-    "TRWF.IS",     # Turkcell Vodafone
+    "TAVHL.IS",    # Turk Vataş
+    "TKFEN.IS",    # TkFen
+    "TICLK.IS",    # Tiçelli
+    "TMSFT.IS",    # Turkiye Microsoft
+    "TUREX.IS",    # Turex
+    "TUTEM.IS",    # Tutem
+    "TURNA.IS",    # Turna
+    "TUSUQ.IS",    # Tusque
     
-    # Enerji & Petrol (8)
+    # 41-50: Enerji
     "AKSA.IS",     # Aksa Enerji
     "TUPAS.IS",    # Türkiye Petrol
-    "CCHOL.IS",    # Çelebi Holding
-    "GENIL.IS",    # Genlik İnşaat
-    "DKHOL.IS",    # Doğan Holding
-    "ENKA.IS",     # Enka Holding
+    "ENKA.IS",     # Enka
     "KRDMD.IS",    # Karadeniz
     "SODA.IS",     # Soda Sanayii
+    "CCHOL.IS",    # Çelebi
+    "KPGRP.IS",    # Kapıkap
+    "EGEEN.IS",    # Egeen Enerji
+    "ENJSA.IS",    # Enerjisa
+    "GEMIN.IS",    # Gemin
     
-    # İnşaat & Gayrimenkul (12)
+    # 51-60: İnşaat & Gayrimenkul
     "EKGYO.IS",    # Emlak Konut
-    "BLDYR.IS",    # Bilder Gayrimenkul
-    "TOASY.IS",    # Toasan Madencilik
-    "ORMA.IS",     # Orma Holding
-    "YAPI.IS",     # Yapı Holding
-    "RSGYO.IS",    # Resorpia Gayrimenkul
-    "AKMYA.IS",    # Akbulut Makine
-    "TRLAT.IS",    # Turla Tekstil
-    "MRSB.IS",     # Marsan Tekstil
-    "HMROL.IS",    # Hamrolı
-    "CEYS.IS",     # Çeyi Sakız
-    "HRSGL.IS",    # Herosğil Tekstil
+    "BLDYR.IS",    # Bilder
+    "ORMA.IS",     # Orma
+    "TOASY.IS",    # Toasan
+    "YAPI.IS",     # Yapı
+    "RSGYO.IS",    # Resorpia
+    "YAPRK.IS",    # Yapıkredi Konut
+    "INSGYO.IS",   # İnş Gayrimenkul
+    "ARSAN.IS",    # Arsan
+    "ARYAP.IS",    # Ar Yapı
     
-    # Üretim & Sanayi (20)
+    # 61-70: Üretim & Sanayi
     "ASELS.IS",    # Aselsan
     "OTKAR.IS",    # Otokar
     "FROTO.IS",    # Ford Otomotiv
-    "TOYO.IS",     # Toyokogyo
     "SISE.IS",     # Şişecam
-    "ISKUR.IS",    # İskur
-    "TCLER.IS",    # Tüm Cemaat Ler
-    "CRYHO.IS",    # Crystalize
     "ARÇEL.IS",    # Arçelik
-    "VESBE.IS",    # Vestel Beyaz
-    "VESTEL.IS",   # Vestel Elektronik
+    "VESTEL.IS",   # Vestel
     "AYGAZ.IS",    # Aygaz
-    "PETKE.IS",    # Petkim Kimya
-    "KORDS.IS",    # Kordindir Oyuncu
-    "ULUSE.IS",    # Ulusal Tekstil
-    "ANELE.IS",    # Anele Tekstil
-    "KAYNK.IS",    # Kaynak Tekstil
-    "LCDHO.IS",    # Leçar Holding
-    "NTTUR.IS",    # Net Turizm
-    "PNTAU.IS",    # Pantau
+    "PETKE.IS",    # Petkim
+    "ULUSE.IS",    # Ulusal
+    "KAYNK.IS",    # Kaynak
     
-    # Turizm & Otel (8)
-    "TURSH.IS",    # Turşu Turizm
-    "TTSS.IS",     # Thessa Turizm
-    "ALYAG.IS",    # Alyağ Turizm
-    "BJKAS.IS",    # Bilmece Kas
-    "DERIN.IS",    # Derin Turizm
-    "GEOSH.IS",    # Geoşu Turizm
-    "HERTT.IS",    # Hertz Turizm
-    "TRTUR.IS",    # Turtur Turizm
+    # 71-80: Üretim & Sanayi (devamı)
+    "LCDHO.IS",    # Leçar
+    "GOLTS.IS",    # Goldaş
+    "HMROL.IS",    # Hamrolı
+    "MRSB.IS",     # Marsan
+    "KRGYO.IS",    # Karma
+    "SRVGY.IS",    # Seren
+    "HEYLL.IS",    # Heyll
+    "HRSGL.IS",    # Herosğil
+    "KORDS.IS",    # Kordindir
+    "IPEKE.IS",    # İpek Enerji
     
-    # Gıda & İçecek (8)
-    "ULKER.IS",    # Ülker Bisküvi
-    "HAPPF.IS",    # Happy Foods
-    "PENGD.IS",    # Penguen Gıda
-    "HATEK.IS",    # Hatek Gıda
-    "MERKO.IS",    # Merkez Otel
-    "PLAVT.IS",    # Plavan Gıda
-    "SEFKR.IS",    # Sefakirin Gıda
-    "TKFYE.IS",    # Takfiye Gıda
-    
-    # Perakende & Ticaret (8)
-    "CARSI.IS",    # Çarşı Merkez
-    "DIFSH.IS",    # Difesh Perakende
-    "GRSEL.IS",    # Gürsel Perakende
-    "MAKSM.IS",    # Maksima Perakende
-    "MKTDR.IS",    # Market Dergisi
-    "SEFIK.IS",    # Sefik Perakende
-    "TOKNY.IS",    # Tokni Perakende
-    "TRADE.IS",    # Trade Ticaret
-    
-    # Kimya & Plastik (6)
-    "PETKM.IS",    # Petkim
-    "BAYMR.IS",    # Bayram Kimya
-    "CHMBK.IS",    # Cheminova
-    "CHMPL.IS",    # Chempal Plastik
-    "KLMPS.IS",    # Klimaplus
+    # 81-90: Turizm, Gıda & Perakende
+    "TRST.IS",     # Türsab
+    "BJKAS.IS",    # Bilmece
+    "KOTON.IS",    # Koton
+    "NTHOL.IS",    # Net Turizm
+    "ULKER.IS",    # Ülker
+    "PENGD.IS",    # Penguen
+    "CARSI.IS",    # Çarşı
+    "HATEK.IS",    # Hatek
+    "MERKO.IS",    # Merkoz
     "PSTKA.IS",    # Plastikart
     
-    # Kağıt & Orman (3)
-    "ARBOS.IS",    # Arbos Orman
-    "KAĞIT.IS",    # Kağıt İşletmeleri
-    "ORNUS.IS",    # Ornustech
+    # 91-100: Çeşitli
+    "ARBOS.IS",    # Arbos
+    "EGLET.IS",    # Egeli
+    "NTTUR.IS",    # Turtur
+    "MARTI.IS",    # Martı
+    "ASMK.IS",     # Asım
+    "KNC.IS",      # Konç
+    "KSTUR.IS",    # Ksu
+    "PETKM.IS",    # Petkim
+    "TAVHL.IS",    # Tavahlı
+    "GEOSH.IS",    # Geoşu
 ]
 
 # ═══════════════════════════════════════════════════════════
-# GLOBAL TOP 50 HISSELER (S&P 500, NASDAQ, Avrupa)
+# GLOBAL TOP 50 HISSELER
 # ═══════════════════════════════════════════════════════════
 
 GLOBAL_STOCKS = [
-    # Teknoloji (15)
+    # Teknoloji Mega Cap (10)
     "AAPL",        # Apple
     "MSFT",        # Microsoft
-    "GOOGL",       # Google/Alphabet
-    "GOOG",        # Google (Class C)
+    "GOOGL",       # Google
+    "GOOG",        # Google Class C
     "AMZN",        # Amazon
-    "NVIDIA",      # Nvidia (NVDA yerine)
-    "META",        # Meta (Facebook)
+    "META",        # Meta
+    "NVDA",        # Nvidia
     "TSLA",        # Tesla
-    "AVGO",        # Broadcom
-    "QCOM",        # Qualcomm
-    "CRM",         # Salesforce
+    "NFLX",        # Netflix
     "ADBE",        # Adobe
-    "SNPS",        # Synopsys
-    "ARM",         # Arm
-    "VRTX",        # Vertex Pharmaceuticals
     
     # Finans (10)
     "JPM",         # JPMorgan Chase
@@ -186,7 +183,7 @@ GLOBAL_STOCKS = [
     "MRK",         # Merck
     "LLY",         # Eli Lilly
     "TMO",         # Thermo Fisher
-    "GILD",        # Gilead Sciences
+    "AMGN",        # Amgen
     
     # Tüketim (7)
     "WMT",         # Walmart
@@ -202,8 +199,8 @@ GLOBAL_STOCKS = [
 ALL_STOCKS = TURKISH_STOCKS + GLOBAL_STOCKS
 
 print(f"✅ Toplam hisse sayısı: {len(ALL_STOCKS)}")
-print(f"   - Türkiye (BIST 100): {len(TURKISH_STOCKS)}")
-print(f"   - Global (Top 50): {len(GLOBAL_STOCKS)}")
+print(f"   - BIST 100: {len(TURKISH_STOCKS)}")
+print(f"   - Global Top 50: {len(GLOBAL_STOCKS)}")
 
 # --- ANALIZ PARAMETRELERI ---
 FIBONACCI_LEVELS = [0.236, 0.382, 0.500, 0.618, 0.786]
