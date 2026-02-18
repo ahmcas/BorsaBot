@@ -1,5 +1,5 @@
 # ============================================================
-# scorer.py — Master Scoring Engine (v3 - FINAL)
+# scorer.py — Master Scoring Engine (v4 - KOMPLE FINAL)
 # ============================================================
 
 import config
@@ -11,7 +11,7 @@ TICKER_TO_SECTOR = {
     # Bankalar
     "AKBANK.IS": "finans", "GARAN.IS": "finans", "ISA.IS": "finans",
     "YBANK.IS": "finans", "TEBNK.IS": "finans", "HALKB.IS": "finans",
-    "PBANK.IS": "finans",
+    "PBANK.IS": "finans", "YKBNK.IS": "finans",
     
     # Sigorta
     "DOAS.IS": "sigortalar", "ACSEL.IS": "sigortalar",
@@ -29,16 +29,17 @@ TICKER_TO_SECTOR = {
     "ORMA.IS": "inşaat_gayrimenkul", "TOASY.IS": "inşaat_gayrimenkul",
     "YAPI.IS": "inşaat_gayrimenkul", "RSGYO.IS": "inşaat_gayrimenkul",
     "TKFEN.IS": "inşaat_gayrimenkul", "ARSAN.IS": "inşaat_gayrimenkul",
+    "SRVGY.IS": "inşaat_gayrimenkul",
     
     # Üretim
     "ASELS.IS": "savunma", "OTKAR.IS": "otomotiv", "FROTO.IS": "otomotiv",
     "SISE.IS": "teknoloji", "ARÇEL.IS": "teknoloji", "VESTEL.IS": "teknoloji",
     "ULUSE.IS": "tekstil", "KAYNK.IS": "tekstil", "LCDHO.IS": "tekstil",
     "GOLTS.IS": "tekstil", "HMROL.IS": "tekstil", "MRSB.IS": "tekstil",
-    "KORDSA.IS": "tekstil", "HATEK.IS": "gida", "PETKM.IS": "kimya",
+    "KORDSA.IS": "tekstil", "HATEK.IS": "gıda", "PETKM.IS": "kimya",
     
     # Gıda
-    "ULKER.IS": "gida", "PENGD.IS": "gida", "MERKO.IS": "gida",
+    "ULKER.IS": "gıda", "PENGD.IS": "gıda", "MERKO.IS": "gıda",
     
     # Turizm
     "TRST.IS": "turizm", "KOTON.IS": "perakende", "NTHOL.IS": "turizm",
@@ -47,13 +48,14 @@ TICKER_TO_SECTOR = {
     "CARSI.IS": "perakende", "ASMK.IS": "perakende",
     
     # Diğer
-    "DYHOL.IS": "finans", "TLMAN.IS": "finans",
+    "DYHOL.IS": "finans", "TLMAN.IS": "finans", "KLVT.IS": "medya",
     
     # Global - Teknoloji
     "AAPL": "teknoloji", "MSFT": "teknoloji", "GOOGL": "teknoloji",
     "AMZN": "teknoloji", "META": "teknoloji", "NVDA": "teknoloji",
     "TSLA": "otomotiv", "NFLX": "teknoloji", "CRM": "teknoloji",
     "ADBE": "teknoloji", "AVGO": "teknoloji", "QCOM": "teknoloji",
+    "ORCL": "teknoloji", "IBM": "teknoloji", "CSCO": "teknoloji",
     
     # Global - Finans
     "JPM": "finans", "BAC": "finans", "WFC": "finans", "MS": "finans",
@@ -70,8 +72,8 @@ TICKER_TO_SECTOR = {
     "TMO": "sağlık", "AMGN": "sağlık",
     
     # Global - Tüketim
-    "WMT": "perakende", "KO": "gida", "PEP": "gida",
-    "MCD": "gida", "NKE": "teknoloji", "COST": "perakende",
+    "WMT": "perakende", "KO": "gıda", "PEP": "gıda",
+    "MCD": "gıda", "NKE": "teknoloji", "COST": "perakende",
     "HD": "perakende", "LOW": "perakende",
 }
 
