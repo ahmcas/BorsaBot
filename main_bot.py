@@ -1,14 +1,5 @@
 # ============================================================
-# main_bot.py — ANA BOT (Orchestrator)
-# ============================================================
-# Bu dosya tüm sistemi yönetir:
-# 1) Haberleri çeker ve analiz eder
-# 2) Tüm hisselerin teknik analizini yapır
-# 3) Master scorer ile nihai skor hesaplar
-# 4) En iyi 1-3 hisseyi seçer
-# 5) Grafikleri üretir
-# 6) Email'i formatlar ve gönderir
-# 7) Her gün otomatik olarak çalıştırılır
+# main_bot.py — ANA BOT (Orchestrator) [UPDATED]
 # ============================================================
 
 import sys
@@ -17,7 +8,6 @@ import schedule
 import time
 from datetime import datetime
 
-# Module imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 from news_analyzer import analyze_all_news
@@ -26,6 +16,31 @@ from scorer import select_top_stocks, generate_recommendation_text
 from chart_generator import generate_all_charts
 from mail_sender import generate_html_body, send_email
 from performance_tracker import PerformanceTracker, generate_performance_email
+
+
+def enrich_recommendations(selected, stock_analysis):
+    """
+    selected'e stock_analysis'den detaylı verileri ekle
+    """
+    for stock in selected:
+        ticker = stock.get("ticker")
+        
+        # Aynı ticker'ı stock_analysis'de bul
+        for analysis in stock_analysis:
+            if analysis.get("ticker") == ticker:
+                # Teknik veriler ekle
+                stock["dataframe"] = analysis.get("dataframe")
+                stock["rsi"] = analysis.get("rsi")
+                stock["macd_histogram"] = analysis.get("macd_histogram")
+                stock["bollinger_position"] = analysis.get("bollinger_position")
+                stock["momentum_pct"] = analysis.get("momentum_pct")
+                stock["sma_short"] = analysis.get("sma_short")
+                stock["sma_long"] = analysis.get("sma_long")
+                stock["fibonacci"] = analysis.get("fibonacci", {})
+                stock["signals"] = analysis.get("signals", [])
+                break
+    
+    return selected
 
 
 def run_full_analysis():
@@ -82,6 +97,9 @@ def run_full_analysis():
 
     try:
         selected = select_top_stocks(stock_analysis, sector_scores, max_count=3)
+        
+        # ✨ YENİ: Seçilenlere detaylı veri ekle
+        selected = enrich_recommendations(selected, stock_analysis)
 
         if selected:
             print(f"\n  🏆 {len(selected)} hisse seçildi:")
@@ -94,6 +112,8 @@ def run_full_analysis():
 
     except Exception as e:
         print(f"  ❌ Scoring hatası: {e}")
+        import traceback
+        traceback.print_exc()
         selected = []
         recommendations = {"recommendations": [], "market_mood": "⚪ Belirsiz"}
 
@@ -124,6 +144,8 @@ def run_full_analysis():
 
     except Exception as e:
         print(f"  ❌ Email hatası: {e}")
+        import traceback
+        traceback.print_exc()
         success = False
 
     # ─── STEP 6: PERFORMANS TAKİBİ ─────────────────────────
@@ -133,20 +155,17 @@ def run_full_analysis():
     try:
         tracker = PerformanceTracker()
         
-        # Bugünün önerilerini kaydet
         for rec in selected:
             rec_id = tracker.save_recommendation(rec)
             print(f"  💾 {rec['ticker']} kaydedildi (ID: {rec_id})")
         
-        # Geçmiş önerilerin performansını kontrol et
         print("\n  🔍 Geçmiş performanslar kontrol ediliyor...")
         perf_results = tracker.check_performance([7, 14, 30])
         
         if perf_results:
             print(f"  ✅ {len(perf_results)} yeni performans hesaplandı")
             
-            # Haftalık performans raporu üret (her Pazartesi)
-            if datetime.now().weekday() == 0:  # Pazartesi
+            if datetime.now().weekday() == 0:
                 print("\n  📈 Haftalık performans raporu gönderiliyor...")
                 report = tracker.generate_report(30)
                 history = tracker.get_detailed_history(20)
@@ -157,8 +176,6 @@ def run_full_analysis():
                     subject=f"📊 Haftalık Performans Raporu - {datetime.now().strftime('%d %b %Y')}"
                 )
                 print(f"  ✅ Performans raporu gönderildi!")
-                print(f"     Başarı Oranı: {report['win_rate']}%")
-                print(f"     Ort. Getiri: {report['avg_return_pct']:+.2f}%")
         else:
             print("  ℹ️  Henüz kontrol edilecek geçmiş öneri yok")
     
@@ -189,18 +206,15 @@ def start_scheduler():
     print(f"   Her gün {config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}'de çalışacak.")
     print("   Durdurmak için: Ctrl + C\n")
 
-    # Her gün belirli saatte çalıştır
     schedule.every().day.at(
         f"{config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}"
     ).do(run_full_analysis)
 
-    # Başlangıçta hemen bir kez çalıştır
     run_full_analysis()
 
-    # Zamanlayıcıyı kontrol eden loop
     while True:
         schedule.run_pending()
-        time.sleep(60)  # Her dakika kontrol et
+        time.sleep(60)
 
 
 if __name__ == "__main__":
@@ -214,12 +228,11 @@ if __name__ == "__main__":
 
     if args.mode == "test":
         print("🧪 TEST MODU - Sadece 2 hisse ile hızlı kontrol")
-        # Test modunda sadece 2 hisseyi analiz et
         config.ALL_STOCKS = ["THYAO.IS", "AAPL"]
         run_full_analysis()
 
     elif args.mode == "schedule":
         start_scheduler()
 
-    else:  # run
+    else:
         run_full_analysis()
