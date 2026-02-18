@@ -1,219 +1,109 @@
 # ============================================================
-# scorer.py — Master Scoring Engine (COMPLETE)
-# ============================================================
-# Bu modül:
-# 1) Haber sentiment'i → Sektörsel skora çevirir
-# 2) Teknik analizdeki her hisse skoru alır
-# 3) İkisini birleştirip NIHAI skor hesaplar
-# 4) En iyi 1-3 hisseyi seçer
-# 5) Risk/reward analizi yapar
+# scorer.py — Master Scoring Engine (v3 - FINAL)
 # ============================================================
 
 import config
 from collections import defaultdict
 
 
-# ═══════════════════════════════════════════════════════════
-# HISSE → SEKTÖR EŞLEŞTİRMESİ (BIST 100 + GLOBAL TOP 50)
-# ═══════════════════════════════════════════════════════════
-
+# Hisse → Sektör Eşleştirmesi
 TICKER_TO_SECTOR = {
-    # BIST 100 - Bankalar (11)
-    "AKBANK.IS": "finans",
-    "GARAN.IS": "finans",
-    "ISA.IS": "finans",
-    "YBANK.IS": "finans",
-    "TEBNK.IS": "finans",
-    "HALKB.IS": "finans",
+    # Bankalar
+    "AKBANK.IS": "finans", "GARAN.IS": "finans", "ISA.IS": "finans",
+    "YBANK.IS": "finans", "TEBNK.IS": "finans", "HALKB.IS": "finans",
     "PBANK.IS": "finans",
-    "KLVT.IS": "finans",
-    "FICOH.IS": "finans",
-    "BNTAS.IS": "finans",
-    "YKBNK.IS": "finans",
     
-    # BIST 100 - Sigorta (3)
-    "DOAS.IS": "sigortalar",
-    "ACSEL.IS": "sigortalar",
-    "ANELE.IS": "sigortalar",
+    # Sigorta
+    "DOAS.IS": "sigortalar", "ACSEL.IS": "sigortalar",
     
-    # BIST 100 - Gayrimenkul (17)
-    "OZKGY.IS": "inşaat_gayrimenkul",
-    "EKGYO.IS": "inşaat_gayrimenkul",
-    "BLDYR.IS": "inşaat_gayrimenkul",
-    "ORMA.IS": "inşaat_gayrimenkul",
-    "TOASY.IS": "inşaat_gayrimenkul",
-    "YAPI.IS": "inşaat_gayrimenkul",
-    "RSGYO.IS": "inşaat_gayrimenkul",
-    "YAPRK.IS": "inşaat_gayrimenkul",
-    "INSGYO.IS": "inşaat_gayrimenkul",
-    "ARSAN.IS": "inşaat_gayrimenkul",
-    "ARYAP.IS": "inşaat_gayrimenkul",
-    "KRGYO.IS": "inşaat_gayrimenkul",
-    "SRVGY.IS": "inşaat_gayrimenkul",
-    "TKFEN.IS": "inşaat_gayrimenkul",
-    "DYHOL.IS": "finans",
-    "ALBRK.IS": "finans",
-    "TLMAN.IS": "finans",
+    # Telekom
+    "TCELL.IS": "telekom", "TTKOM.IS": "telekom",
     
-    # BIST 100 - Telekom (4)
-    "TCELL.IS": "telekom",
-    "TTKOM.IS": "telekom",
-    "TAVHL.IS": "telekom",
-    "TRWF.IS": "telekom",
+    # Enerji
+    "AKSA.IS": "enerji", "TUPAS.IS": "enerji", "ENKA.IS": "enerji",
+    "SODA.IS": "enerji", "CCHOL.IS": "enerji", "KRDMD.IS": "enerji",
+    "AYGAZ.IS": "enerji", "PETKE.IS": "enerji",
     
-    # BIST 100 - Enerji (13)
-    "AKSA.IS": "enerji",
-    "TUPAS.IS": "enerji",
-    "ENKA.IS": "enerji",
-    "KRDMD.IS": "enerji",
-    "SODA.IS": "enerji",
-    "CCHOL.IS": "enerji",
-    "KPGRP.IS": "enerji",
-    "EGEEN.IS": "enerji",
-    "ENJSA.IS": "enerji",
-    "GEMIN.IS": "enerji",
-    "AYGAZ.IS": "enerji",
-    "PETKE.IS": "enerji",
-    "IPEKE.IS": "enerji",
+    # Gayrimenkul
+    "EKGYO.IS": "inşaat_gayrimenkul", "BLDYR.IS": "inşaat_gayrimenkul",
+    "ORMA.IS": "inşaat_gayrimenkul", "TOASY.IS": "inşaat_gayrimenkul",
+    "YAPI.IS": "inşaat_gayrimenkul", "RSGYO.IS": "inşaat_gayrimenkul",
+    "TKFEN.IS": "inşaat_gayrimenkul", "ARSAN.IS": "inşaat_gayrimenkul",
     
-    # BIST 100 - Üretim & Sanayi (20)
-    "ASELS.IS": "savunma",
-    "OTKAR.IS": "otomotiv",
-    "FROTO.IS": "otomotiv",
-    "SISE.IS": "teknoloji",
-    "ARÇEL.IS": "teknoloji",
-    "VESTEL.IS": "teknoloji",
-    "ULUSE.IS": "tekstil",
-    "KAYNK.IS": "tekstil",
-    "LCDHO.IS": "tekstil",
-    "GOLTS.IS": "tekstil",
-    "HMROL.IS": "tekstil",
-    "MRSB.IS": "tekstil",
-    "HRSGL.IS": "tekstil",
-    "KORDS.IS": "tekstil",
-    "HEYLL.IS": "tekstil",
-    "KORDSA.IS": "tekstil",
-    "PETKM.IS": "kimya",
-    "ARBOS.IS": "orman",
-    "EGLET.IS": "orman",
-    "PSTKA.IS": "kimya",
+    # Üretim
+    "ASELS.IS": "savunma", "OTKAR.IS": "otomotiv", "FROTO.IS": "otomotiv",
+    "SISE.IS": "teknoloji", "ARÇEL.IS": "teknoloji", "VESTEL.IS": "teknoloji",
+    "ULUSE.IS": "tekstil", "KAYNK.IS": "tekstil", "LCDHO.IS": "tekstil",
+    "GOLTS.IS": "tekstil", "HMROL.IS": "tekstil", "MRSB.IS": "tekstil",
+    "KORDSA.IS": "tekstil", "HATEK.IS": "gida", "PETKM.IS": "kimya",
     
-    # BIST 100 - Gıda & İçecek (5)
-    "ULKER.IS": "gida",
-    "PENGD.IS": "gida",
-    "MERKO.IS": "gida",
-    "MARTI.IS": "gida",
-    "BANVT.IS": "gida",
+    # Gıda
+    "ULKER.IS": "gida", "PENGD.IS": "gida", "MERKO.IS": "gida",
     
-    # BIST 100 - Perakende & Turizm (7)
-    "CARSI.IS": "perakende",
-    "KOTON.IS": "perakende",
-    "HATEK.IS": "gida",
-    "TRST.IS": "turizm",
-    "BJKAS.IS": "turizm",
-    "NTHOL.IS": "turizm",
-    "NTTUR.IS": "turizm",
-    "KSTUR.IS": "turizm",
-    "ASMK.IS": "perakende",
-    "KNC.IS": "perakende",
+    # Turizm
+    "TRST.IS": "turizm", "KOTON.IS": "perakende", "NTHOL.IS": "turizm",
     
-    # BIST 100 - Medya
-    "ARENA.IS": "medya",
+    # Perakende
+    "CARSI.IS": "perakende", "ASMK.IS": "perakende",
     
-    # Global - Teknoloji (9)
-    "AAPL": "teknoloji",
-    "MSFT": "teknoloji",
-    "GOOGL": "teknoloji",
-    "GOOG": "teknoloji",
-    "AMZN": "teknoloji",
-    "META": "teknoloji",
-    "NVDA": "teknoloji",
-    "NFLX": "teknoloji",
-    "ADBE": "teknoloji",
+    # Diğer
+    "DYHOL.IS": "finans", "TLMAN.IS": "finans",
     
-    # Global - Otomotiv
-    "TSLA": "otomotiv",
+    # Global - Teknoloji
+    "AAPL": "teknoloji", "MSFT": "teknoloji", "GOOGL": "teknoloji",
+    "AMZN": "teknoloji", "META": "teknoloji", "NVDA": "teknoloji",
+    "TSLA": "otomotiv", "NFLX": "teknoloji", "CRM": "teknoloji",
+    "ADBE": "teknoloji", "AVGO": "teknoloji", "QCOM": "teknoloji",
     
-    # Global - Finans (10)
-    "JPM": "finans",
-    "BAC": "finans",
-    "WFC": "finans",
-    "MS": "finans",
-    "GS": "finans",
-    "V": "finans",
-    "MA": "finans",
-    "AXP": "finans",
-    "BLK": "finans",
-    "SCHW": "finans",
+    # Global - Finans
+    "JPM": "finans", "BAC": "finans", "WFC": "finans", "MS": "finans",
+    "GS": "finans", "V": "finans", "MA": "finans", "AXP": "finans",
+    "BLK": "finans", "SCHW": "finans",
     
-    # Global - Enerji (5)
-    "XOM": "enerji",
-    "CVX": "enerji",
-    "COP": "enerji",
-    "MPC": "enerji",
-    "PSX": "enerji",
+    # Global - Enerji
+    "XOM": "enerji", "CVX": "enerji", "COP": "enerji",
+    "MPC": "enerji", "PSX": "enerji",
     
-    # Global - Sağlık (8)
-    "UNH": "sağlık",
-    "JNJ": "sağlık",
-    "PFE": "sağlık",
-    "ABBV": "sağlık",
-    "MRK": "sağlık",
-    "LLY": "sağlık",
-    "TMO": "sağlık",
-    "AMGN": "sağlık",
+    # Global - Sağlık
+    "UNH": "sağlık", "JNJ": "sağlık", "PFE": "sağlık",
+    "ABBV": "sağlık", "MRK": "sağlık", "LLY": "sağlık",
+    "TMO": "sağlık", "AMGN": "sağlık",
     
-    # Global - Tüketim & Perakende (7)
-    "WMT": "perakende",
-    "KO": "gida",
-    "PEP": "gida",
-    "MCD": "gida",
-    "NKE": "teknoloji",
-    "COST": "perakende",
-    "HD": "perakende",
+    # Global - Tüketim
+    "WMT": "perakende", "KO": "gida", "PEP": "gida",
+    "MCD": "gida", "NKE": "teknoloji", "COST": "perakende",
+    "HD": "perakende", "LOW": "perakende",
 }
 
 
 def map_sector_score_to_stock(ticker: str, sector_scores: dict) -> float:
-    """
-    Bir hissenin sektörünün haber sentiment skoru nedir?
-    Döndürür: -1.0 ile +1.0 arası float
-    """
+    """Bir hissenin sektörünün haber sentiment skoru nedir?"""
     sector = TICKER_TO_SECTOR.get(ticker, "genel")
     score = sector_scores.get(sector, sector_scores.get("genel", 0.0))
     return float(score)
 
 
-def calculate_final_score(ticker: str, technical_score: float,
-                          sector_scores: dict) -> dict:
-    """
-    Nihai skor hesaplar.
-
-    Formül:
-    final = (teknik * 0.40) + (sektör_haber * 0.20) + (temel * 0.30) + (momentum * 0.10)
-
-    Ağırlıklar config.py'den alınır.
-    """
+def calculate_final_score(ticker: str, technical_score: float, sector_scores: dict) -> dict:
+    """Nihai skor hesapla"""
     try:
-        # Teknik skor: 0-100 → 0-1 normalize
+        # Teknik skor normalize
         tech_normalized = technical_score / 100.0
 
-        # Sektörel haber skoru: -1 ile +1 → 0 ile 1 normalize
+        # Sektörel haber skoru normalize
         sector_score = map_sector_score_to_stock(ticker, sector_scores)
         sector_normalized = (float(sector_score) + 1.0) / 2.0  # -1,+1 → 0,1
 
-        # Momentum factor: Teknik skor içinde zaten yansıtıldı
-        momentum_factor = 0.5  # Default neutral
+        # Momentum factor
+        momentum_factor = 0.5
 
-        # Ağırlıklı skor hesapla
-        # Temel analiz proxy olarak teknik skor kullanılıyor (API sınırlaması nedeniyle)
+        # Ağırlıklı skor
         total_weight = config.WEIGHT_TECHNICAL + config.WEIGHT_FUNDAMENTAL + \
                       config.WEIGHT_NEWS_SENTIMENT + config.WEIGHT_MOMENTUM
 
         final_raw = (
             (tech_normalized * config.WEIGHT_TECHNICAL) +
             (sector_normalized * config.WEIGHT_NEWS_SENTIMENT) +
-            (tech_normalized * config.WEIGHT_FUNDAMENTAL) +  # Proxy
+            (tech_normalized * config.WEIGHT_FUNDAMENTAL) +
             (momentum_factor * config.WEIGHT_MOMENTUM)
         ) / total_weight
 
@@ -221,12 +111,12 @@ def calculate_final_score(ticker: str, technical_score: float,
         final_score = final_raw * 100.0
         final_score = max(0, min(100, final_score))
 
-        # Rating ve confidence belirle
+        # Rating ve confidence
         if final_score >= 70:
             rating = "🔥 GÜÇLÜ AL"
             confidence = "Yüksek"
         elif final_score >= 58:
-            rating = "�� AL"
+            rating = "📈 AL"
             confidence = "Orta-Yüksek"
         elif final_score >= 48:
             rating = "⚖️ İZLE"
@@ -259,33 +149,23 @@ def calculate_final_score(ticker: str, technical_score: float,
         }
 
 
-def select_top_stocks(all_analysis: list, sector_scores: dict,
-                      max_count: int = 3) -> list:
-    """
-    Tüm hisseleri skor alarak en iyi 1-3'ünü seçer.
-
-    Seçim kriterleri:
-    1) Nihai skor en yüksek olanlar
-    2) Minimum skor threshold'u: 50 (altında olan hiçbiri seçilmez)
-    3) Sektör çeşitlendirmesi: Aynı sektörden max 1 hisse
-    4) Rating'i "AL" veya yukarısı olmalı
-    """
+def select_top_stocks(all_analysis: list, sector_scores: dict, max_count: int = 3) -> list:
+    """En iyi 1-3 hisseyi seç"""
     try:
-        # Her hisse için nihai skor hesapla
         scored = []
         
         for stock in all_analysis:
             ticker = stock.get("ticker", "")
             tech_score = stock.get("score", 0)
 
-            if tech_score == 0 or tech_score is None:
+            if tech_score == 0 or tech_score is None or stock.get("skip"):
                 continue
 
             final = calculate_final_score(ticker, tech_score, sector_scores)
             stock.update(final)
             scored.append(stock)
 
-        # Final score'a göre sort (yüksek → düşük)
+        # Sort by score
         scored.sort(key=lambda x: x.get("final_score", 0), reverse=True)
 
         # Sektör çeşitlendirmesi ile seç
@@ -300,7 +180,7 @@ def select_top_stocks(all_analysis: list, sector_scores: dict,
             if stock.get("final_score", 0) < 50:
                 continue
 
-            # Rating kontrolü (sadece AL veya yukarısı)
+            # Rating kontrolü
             rating = stock.get("rating", "")
             if "AL" not in rating and "🔥" not in rating:
                 continue
@@ -308,12 +188,12 @@ def select_top_stocks(all_analysis: list, sector_scores: dict,
             # Sektör çeşitlendirmesi
             sector = stock.get("sector", "genel")
             if sector in used_sectors:
-                continue  # Bu sektörden zaten seçtik
+                continue
 
             selected.append(stock)
             used_sectors.add(sector)
 
-        # Hiçbiri seçilmediyse en yüksek scored'u al (threshold düşür)
+        # Hiçbiri seçilmediyse best'i al
         if not selected and scored:
             best = scored[0]
             if best.get("final_score", 0) >= 40:
@@ -326,12 +206,8 @@ def select_top_stocks(all_analysis: list, sector_scores: dict,
         return []
 
 
-def generate_recommendation_text(selected: list, sector_scores: dict,
-                                  news_summary: list = None) -> dict:
-    """
-    Son kullanıcı için okunabilir önerileri oluşturur.
-    Email'e gönderilecek recommendation'ları hazırlar.
-    """
+def generate_recommendation_text(selected: list, sector_scores: dict) -> dict:
+    """Son kullanıcı için önerileri oluştur"""
     try:
         recommendations = []
 
@@ -353,12 +229,12 @@ def generate_recommendation_text(selected: list, sector_scores: dict,
             sma_long = stock.get("sma_long", "N/A")
             momentum = stock.get("momentum_pct", "N/A")
 
-            # Fibonacci destek/direnç
+            # Fibonacci
             current = fib.get("current", price)
             support = fib.get("fib_0.382", 0)
             resistance = fib.get("fib_0.618", 0)
 
-            # Risk/Reward hesapla
+            # Risk/Reward
             if support > 0 and resistance > 0 and current > 0:
                 try:
                     risk = round((current - support) / current * 100, 1)
@@ -377,7 +253,7 @@ def generate_recommendation_text(selected: list, sector_scores: dict,
                 "score": score,
                 "rating": rating,
                 "confidence": confidence,
-                "signals": signals[:5],  # Max 5 sinyal
+                "signals": signals[:5],
                 "support": support,
                 "resistance": resistance,
                 "risk_pct": risk,
@@ -398,7 +274,7 @@ def generate_recommendation_text(selected: list, sector_scores: dict,
             "recommendations": recommendations,
             "total_selected": len(selected),
             "market_mood": determine_market_mood(sector_scores),
-            "analysis_date": None
+            "sector_scores": sector_scores
         }
 
     except Exception as e:
@@ -407,12 +283,12 @@ def generate_recommendation_text(selected: list, sector_scores: dict,
             "recommendations": [],
             "total_selected": 0,
             "market_mood": "⚪ Belirsiz",
-            "analysis_date": None
+            "sector_scores": sector_scores
         }
 
 
 def determine_market_mood(sector_scores: dict) -> str:
-    """Genel piyasa duygu analizi."""
+    """Genel piyasa duygu analizi"""
     try:
         if not sector_scores:
             return "⚪ Belirsiz"
@@ -421,15 +297,15 @@ def determine_market_mood(sector_scores: dict) -> str:
         avg_all = float(avg_all)
 
         if avg_all >= 0.3:
-            return "🟢 Çok Olumlu - Piyasalar yukarı baskı altında"
+            return "🟢 ÇOK OLUMLU"
         elif avg_all >= 0.1:
-            return "🟢 Olumlu - Genel pozitif sinyaller var"
+            return "🟢 OLUMLU"
         elif avg_all >= -0.1:
-            return "🟡 Karışık - Piyasa yönü belirsiz"
+            return "🟡 KARIŞIK"
         elif avg_all >= -0.3:
-            return "🔴 Olumsuz - Dikkatli olun"
+            return "🔴 OLUMSUZ"
         else:
-            return "🔴 Çok Olumsuz - Yüksek risk dönem"
+            return "🔴 ÇOK OLUMSUZ"
 
     except Exception as e:
         print(f"[ERROR] Market mood belirleme hatası: {e}")
