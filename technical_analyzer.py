@@ -1,11 +1,5 @@
 # ============================================================
-# technical_analyzer.py — Teknik Analiz Engine (FIXED)
-# ============================================================
-# Bu modül:
-# 1) yfinance ile hisse verileri çeker
-# 2) RSI, MACD, Bollinger, SMA hesaplar
-# 3) Fibonacci destek/direnç seviyelerini belirler
-# 4) Her hisse için 0-100 arası teknik skor üretir
+# technical_analyzer.py — Çoklu Veri Kaynağı Desteği
 # ============================================================
 
 import yfinance as yf
@@ -14,16 +8,20 @@ import numpy as np
 from datetime import datetime, timedelta
 import config
 
+try:
+    import requests
+except:
+    import subprocess
+    subprocess.run(["pip", "install", "requests"], check=True)
+    import requests
 
-def download_stock_data(ticker: str, period_days: int = 200) -> pd.DataFrame:
-    """
-    Bir hisse için son N günsünün verisini çeker.
-    Döndürür: OHLCV DataFrame
-    """
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=period_days)
 
+def download_from_yahoo(ticker: str, period_days: int = 200) -> pd.DataFrame:
+    """Yahoo Finance'ten veri çek"""
     try:
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=period_days)
+        
         df = yf.download(
             ticker,
             start=start_date.strftime("%Y-%m-%d"),
@@ -31,61 +29,231 @@ def download_stock_data(ticker: str, period_days: int = 200) -> pd.DataFrame:
             progress=False,
             auto_adjust=True
         )
-
+        
         if df.empty:
-            print(f"[⚠️] {ticker} için veri bulunamadı.")
             return pd.DataFrame()
-
-        # Column flatten (yfinance bazen multi-index döndürür)
+        
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-
+        
         return df
-
-    except Exception as e:
-        print(f"[❌] {ticker} veri çekme hatası: {e}")
+    except:
         return pd.DataFrame()
 
 
+def download_from_alpha_vantage(ticker: str, period_days: int = 200) -> pd.DataFrame:
+    """Alpha Vantage'den veri çek"""
+    try:
+        api_key = config.ALPHA_VANTAGE_KEY
+        if not api_key or api_key == "YOUR_ALPHA_VANTAGE_KEY_HERE":
+            return pd.DataFrame()
+        
+        # Türkçe hisse sembolleri için format değişikliği
+        symbol = ticker.replace(".IS", "")
+        
+        url = f"https://www.alphavantage.co/query"
+        params = {
+            "function": "TIME_SERIES_DAILY",
+            "symbol": symbol,
+            "apikey": api_key,
+            "outputsize": "full"
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if "Time Series (Daily)" not in data:
+            return pd.DataFrame()
+        
+        ts = data["Time Series (Daily)"]
+        dates = []
+        opens = []
+        highs = []
+        lows = []
+        closes = []
+        volumes = []
+        
+        for date, values in sorted(ts.items())[-period_days:]:
+            dates.append(pd.to_datetime(date))
+            opens.append(float(values["1. open"]))
+            highs.append(float(values["2. high"]))
+            lows.append(float(values["3. low"]))
+            closes.append(float(values["4. close"]))
+            volumes.append(float(values["6. volume"]))
+        
+        df = pd.DataFrame({
+            "Open": opens,
+            "High": highs,
+            "Low": lows,
+            "Close": closes,
+            "Volume": volumes
+        }, index=dates)
+        
+        return df
+    except:
+        return pd.DataFrame()
+
+
+def download_from_iex(ticker: str, period_days: int = 200) -> pd.DataFrame:
+    """IEX Cloud'dan veri çek"""
+    try:
+        api_key = "pk_test8aac109e59f84982a89a6f2ca628d7e0"  # Public test key
+        
+        symbol = ticker.replace(".IS", "")
+        
+        url = f"https://cloud.iexapis.com/stable/stock/{symbol}/chart/1y"
+        params = {"token": api_key}
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if not data or isinstance(data, dict) and "message" in data:
+            return pd.DataFrame()
+        
+        dates = []
+        opens = []
+        highs = []
+        lows = []
+        closes = []
+        volumes = []
+        
+        for candle in data[-period_days:]:
+            try:
+                dates.append(pd.to_datetime(candle["date"]))
+                opens.append(float(candle.get("open", 0)) or 0)
+                highs.append(float(candle.get("high", 0)) or 0)
+                lows.append(float(candle.get("low", 0)) or 0)
+                closes.append(float(candle.get("close", 0)) or 0)
+                volumes.append(float(candle.get("volume", 0)) or 0)
+            except:
+                continue
+        
+        if not closes:
+            return pd.DataFrame()
+        
+        df = pd.DataFrame({
+            "Open": opens,
+            "High": highs,
+            "Low": lows,
+            "Close": closes,
+            "Volume": volumes
+        }, index=dates)
+        
+        return df
+    except:
+        return pd.DataFrame()
+
+
+def download_from_polygon(ticker: str, period_days: int = 200) -> pd.DataFrame:
+    """Polygon.io'dan veri çek (TÜRK HİSSELERİ DESTEKLEMEZ)"""
+    try:
+        api_key = "YOUR_POLYGON_API_KEY"
+        
+        if ticker.endswith(".IS"):
+            # Türk hisseleri Polygon'da yok
+            return pd.DataFrame()
+        
+        symbol = ticker
+        url = f"https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day"
+        
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=period_days)
+        
+        params = {
+            "from": start_date.strftime("%Y-%m-%d"),
+            "to": end_date.strftime("%Y-%m-%d"),
+            "apiKey": api_key
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if "results" not in data:
+            return pd.DataFrame()
+        
+        dates = []
+        opens = []
+        highs = []
+        lows = []
+        closes = []
+        volumes = []
+        
+        for agg in data["results"]:
+            dates.append(pd.to_datetime(agg["t"], unit="ms"))
+            opens.append(float(agg.get("o", 0)) or 0)
+            highs.append(float(agg.get("h", 0)) or 0)
+            lows.append(float(agg.get("l", 0)) or 0)
+            closes.append(float(agg.get("c", 0)) or 0)
+            volumes.append(float(agg.get("v", 0)) or 0)
+        
+        df = pd.DataFrame({
+            "Open": opens,
+            "High": highs,
+            "Low": lows,
+            "Close": closes,
+            "Volume": volumes
+        }, index=dates)
+        
+        return df
+    except:
+        return pd.DataFrame()
+
+
+def download_stock_data(ticker: str, period_days: int = 200) -> pd.DataFrame:
+    """
+    Çoklu kaynaklardan veri çekmeyi dene.
+    Birinci başarılı kaynaktan veriyi döndür.
+    """
+    sources = [
+        ("Yahoo Finance", lambda: download_from_yahoo(ticker, period_days)),
+        ("Alpha Vantage", lambda: download_from_alpha_vantage(ticker, period_days)),
+        ("IEX Cloud", lambda: download_from_iex(ticker, period_days)),
+        ("Polygon.io", lambda: download_from_polygon(ticker, period_days)),
+    ]
+    
+    for source_name, source_func in sources:
+        try:
+            df = source_func()
+            if not df.empty and len(df) > 60:
+                print(f"  📊 {ticker} - {source_name} ✅")
+                return df
+        except Exception as e:
+            pass
+    
+    print(f"  ❌ {ticker} - Hiçbir kaynaktan veri alınamadı")
+    return pd.DataFrame()
+
+
+# Geri kalan fonksiyonlar aynı kalır...
 def calculate_rsi(prices: pd.Series, period: int = 14) -> pd.Series:
-    """RSI (Relative Strength Index) hesaplar."""
+    """RSI hesapla"""
     try:
         delta = prices.diff()
         gain = delta.where(delta > 0, 0.0)
         loss = (-delta).where(delta < 0, 0.0)
-
         avg_gain = gain.rolling(window=period).mean()
         avg_loss = loss.rolling(window=period).mean()
-
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
-    except Exception as e:
-        print(f"RSI hesaplama hatası: {e}")
+    except:
         return pd.Series([50] * len(prices))
 
 
-def calculate_macd(prices: pd.Series,
-                   fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
-    """
-    MACD hesaplar.
-    Döndürür: {"macd_line": Series, "signal_line": Series, "histogram": Series}
-    """
+def calculate_macd(prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9) -> dict:
+    """MACD hesapla"""
     try:
         ema_fast = prices.ewm(span=fast, adjust=False).mean()
         ema_slow = prices.ewm(span=slow, adjust=False).mean()
-
         macd_line = ema_fast - ema_slow
         signal_line = macd_line.ewm(span=signal, adjust=False).mean()
         histogram = macd_line - signal_line
-
         return {
             "macd_line": macd_line,
             "signal_line": signal_line,
             "histogram": histogram
         }
-    except Exception as e:
-        print(f"MACD hesaplama hatası: {e}")
+    except:
         return {
             "macd_line": pd.Series([0] * len(prices)),
             "signal_line": pd.Series([0] * len(prices)),
@@ -93,88 +261,56 @@ def calculate_macd(prices: pd.Series,
         }
 
 
-def calculate_bollinger_bands(prices: pd.Series, period: int = 20,
-                              std_dev: float = 2.0) -> dict:
-    """
-    Bollinger Bands hesaplar.
-    Döndürür: {"upper": Series, "middle": Series, "lower": Series}
-    """
+def calculate_bollinger_bands(prices: pd.Series, period: int = 20, std_dev: float = 2.0) -> dict:
+    """Bollinger Bands hesapla"""
     try:
         sma = prices.rolling(window=period).mean()
         std = prices.rolling(window=period).std()
-
         return {
             "upper": sma + (std * std_dev),
             "middle": sma,
             "lower": sma - (std * std_dev)
         }
-    except Exception as e:
-        print(f"Bollinger Bands hesaplama hatası: {e}")
-        return {
-            "upper": prices,
-            "middle": prices,
-            "lower": prices
-        }
+    except:
+        return {"upper": prices, "middle": prices, "lower": prices}
 
 
 def calculate_fibonacci_levels(df: pd.DataFrame, lookback: int = 60) -> dict:
-    """
-    Son 60 gün içinde Fibonacci destek/direnç seviyelerini hesaplar.
-    """
+    """Fibonacci seviyeleri hesapla"""
     try:
         recent = df.tail(lookback)
         if recent.empty:
             return {}
-
         high = float(recent["High"].max())
         low = float(recent["Low"].min())
         diff = high - low
-
         levels = {}
         for level in config.FIBONACCI_LEVELS:
             levels[f"fib_{level}"] = round(low + (diff * level), 2)
-
         levels["high"] = round(high, 2)
         levels["low"] = round(low, 2)
         levels["current"] = round(float(df["Close"].iloc[-1]), 2)
-
         return levels
-    except Exception as e:
-        print(f"Fibonacci hesaplama hatası: {e}")
+    except:
         return {}
 
 
 def calculate_momentum(prices: pd.Series, period: int = 10) -> float:
-    """
-    Momentum: Son N gün fiyat değişimi (yüzde).
-    """
+    """Momentum hesapla"""
     try:
         if len(prices) < period:
             return 0.0
-        
         current = float(prices.iloc[-1])
         past = float(prices.iloc[-period])
-        
         if past == 0:
             return 0.0
-        
         return float((current - past) / past * 100)
-    except Exception as e:
-        print(f"Momentum hesaplama hatası: {e}")
+    except:
         return 0.0
 
 
 def score_technical(df: pd.DataFrame) -> dict:
-    """
-    Bir hisse için teknik skor hesaplar (0-100 arası).
-    
-    Score kriterleri:
-    - RSI: 30-70 arası normal → 30 altı oversold → 70 üstü overbought
-    - MACD: Histogram pozitif = bullish
-    - Bollinger: Fiyat bant altında = potansiyel alım
-    - SMA: Fiyat > SMA50 = yukarı trend
-    - Momentum: Pozitif momentum olumlu
-    """
+    """Teknik skor hesapla (aynı)"""
     if df.empty or len(df) < 60:
         return {
             "score": 0,
@@ -191,54 +327,52 @@ def score_technical(df: pd.DataFrame) -> dict:
 
     try:
         close = df["Close"].squeeze()
-        score = 50  # Başlangıç neutral
+        score = 50
         signals = []
 
-        # --- RSI Analizi (max ±15 puan) ---
+        # RSI
         rsi = calculate_rsi(close, config.RSI_PERIOD)
         current_rsi = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50
 
         if current_rsi < 30:
             rsi_bonus = 15
-            signals.append(f"RSI {current_rsi:.1f} → Oversold (Alım Sinyali)")
+            signals.append(f"RSI {current_rsi:.1f} → Oversold")
         elif current_rsi < 45:
             rsi_bonus = 8
-            signals.append(f"RSI {current_rsi:.1f} → Düşük Bölge")
+            signals.append(f"RSI {current_rsi:.1f} → Düşük")
         elif current_rsi > 70:
             rsi_bonus = -15
-            signals.append(f"RSI {current_rsi:.1f} → Overbought (Dikkat)")
+            signals.append(f"RSI {current_rsi:.1f} → Overbought")
         elif current_rsi > 55:
             rsi_bonus = 3
-            signals.append(f"RSI {current_rsi:.1f} → Normal-Güçlü")
+            signals.append(f"RSI {current_rsi:.1f} → Güçlü")
         else:
             rsi_bonus = 0
             signals.append(f"RSI {current_rsi:.1f} → Neutral")
-
         score += rsi_bonus
 
-        # --- MACD Analizi (max ±15 puan) ---
+        # MACD
         macd = calculate_macd(close, config.MACD_FAST, config.MACD_SLOW, config.MACD_SIGNAL)
         hist_current = float(macd["histogram"].iloc[-1]) if not pd.isna(macd["histogram"].iloc[-1]) else 0
         hist_prev = float(macd["histogram"].iloc[-2]) if len(macd["histogram"]) > 1 else 0
 
         if hist_current > 0 and hist_prev > 0:
             macd_bonus = 15
-            signals.append("MACD → Güçlü Bullish (Histogram pozitif)")
+            signals.append("MACD → Bullish")
         elif hist_current > 0 and hist_prev <= 0:
             macd_bonus = 12
-            signals.append("MACD → Bullish Crossover (Alım Sinyali)")
+            signals.append("MACD → Bullish Cross")
         elif hist_current < 0 and hist_prev > 0:
             macd_bonus = -12
-            signals.append("MACD → Bearish Crossover (Satım Sinyali)")
+            signals.append("MACD → Bearish Cross")
         elif hist_current < 0:
             macd_bonus = -8
             signals.append("MACD → Bearish")
         else:
             macd_bonus = 0
-
         score += macd_bonus
 
-        # --- Bollinger Band Analizi (max ±10 puan) ---
+        # Bollinger Bands
         bollinger = calculate_bollinger_bands(close, config.BOLLINGER_PERIOD)
         current_price = float(close.iloc[-1])
         upper = float(bollinger["upper"].iloc[-1]) if not pd.isna(bollinger["upper"].iloc[-1]) else current_price
@@ -246,60 +380,53 @@ def score_technical(df: pd.DataFrame) -> dict:
 
         if current_price < lower:
             bb_bonus = 10
-            signals.append("Bollinger → Fiyat Alt Bantın Altında (Alım Potansiyeli)")
+            signals.append("Bollinger → Alt Bant")
         elif current_price < lower * 1.02:
             bb_bonus = 5
-            signals.append("Bollinger → Alt Bant Yakınında")
+            signals.append("Bollinger → Alt Yakın")
         elif current_price > upper:
             bb_bonus = -8
-            signals.append("Bollinger → Fiyat Üst Bantın Üstünde (Dikkat)")
+            signals.append("Bollinger → Üst Bant")
         else:
             bb_bonus = 0
-            signals.append("Bollinger → Band İçinde (Normal)")
-
         score += bb_bonus
 
-        # --- SMA Analizi (max ±10 puan) ---
+        # SMA
         sma_short = float(close.rolling(window=config.SMA_SHORT).mean().iloc[-1]) if len(close) >= config.SMA_SHORT else current_price
         sma_long = float(close.rolling(window=config.SMA_LONG).mean().iloc[-1]) if len(close) >= config.SMA_LONG else current_price
 
         if current_price > sma_long and sma_short > sma_long:
             sma_bonus = 10
-            signals.append("SMA → Güçlü Yukarı Trend (Fiyat > SMA20 > SMA50)")
+            signals.append("SMA → Yukarı Trend")
         elif current_price > sma_long:
             sma_bonus = 5
-            signals.append("SMA → Yukarı Trend")
+            signals.append("SMA → Yukarı")
         elif current_price < sma_long:
             sma_bonus = -5
-            signals.append("SMA → Aşağı Trend")
+            signals.append("SMA → Aşağı")
         else:
             sma_bonus = 0
-
         score += sma_bonus
 
-        # --- Momentum Analizi (max ±10 puan) ---
+        # Momentum
         momentum = calculate_momentum(close, 10)
         if momentum > 5:
             mom_bonus = 10
-            signals.append(f"Momentum → Güçlü Pozitif ({momentum:+.1f}%)")
+            signals.append(f"Momentum → +{momentum:.1f}%")
         elif momentum > 0:
             mom_bonus = 5
-            signals.append(f"Momentum → Pozitif ({momentum:+.1f}%)")
+            signals.append(f"Momentum → +{momentum:.1f}%")
         elif momentum < -5:
             mom_bonus = -10
-            signals.append(f"Momentum → Güçlü Negatif ({momentum:+.1f}%)")
+            signals.append(f"Momentum → {momentum:.1f}%")
         elif momentum < 0:
             mom_bonus = -3
-            signals.append(f"Momentum → Negatif ({momentum:+.1f}%)")
+            signals.append(f"Momentum → {momentum:.1f}%")
         else:
             mom_bonus = 0
-
         score += mom_bonus
 
-        # Skoru 0-100 arası sınırla
         score = max(0, min(100, score))
-
-        # Fibonacci
         fib = calculate_fibonacci_levels(df)
 
         return {
@@ -316,7 +443,6 @@ def score_technical(df: pd.DataFrame) -> dict:
         }
 
     except Exception as e:
-        print(f"Score hesaplama hatası: {e}")
         return {
             "score": 0,
             "rsi": 50,
@@ -326,14 +452,13 @@ def score_technical(df: pd.DataFrame) -> dict:
             "sma_short": 0,
             "sma_long": 0,
             "fibonacci": {},
-            "signals": [f"Hata: {str(e)}"],
+            "signals": ["Hata"],
             "current_price": 0
         }
 
 
 def analyze_stock(ticker: str) -> dict:
-    """Bir hisse için tam teknik analiz yapar."""
-    print(f"  📈 {ticker} analiz edildi...")
+    """Bir hisse analiz et"""
     df = download_stock_data(ticker, period_days=200)
 
     if df.empty:
@@ -341,79 +466,46 @@ def analyze_stock(ticker: str) -> dict:
             "ticker": ticker,
             "score": 0,
             "error": "Veri bulunamadı",
-            "rsi": 0,
-            "macd_histogram": 0,
-            "bollinger_position": "unknown",
-            "momentum_pct": 0,
-            "sma_short": 0,
-            "sma_long": 0,
-            "fibonacci": {},
-            "signals": [],
-            "current_price": 0,
-            "dataframe": pd.DataFrame()
+            "skip": True
         }
 
     result = score_technical(df)
     result["ticker"] = ticker
-    result["dataframe"] = df  # Grafik için sakla
+    result["dataframe"] = df
+    result["skip"] = False
 
     return result
 
 
 def analyze_all_stocks(tickers: list = None) -> list:
-    """
-    Tüm hisseleri analiz eder.
-    Döndürür: Score'a göre sıralanmış analiz listesi
-    """
+    """Tüm hisseleri analiz et"""
     if tickers is None:
         tickers = config.ALL_STOCKS
 
-    print(f"\n📊 {len(tickers)} hisse analiz başlıyor...\n")
+    print(f"\n📊 {len(tickers)} hisse çoklu kaynaklardan analiz ediliyor...\n")
 
     results = []
-    error_count = 0
     success_count = 0
+    skip_count = 0
 
-    for ticker in tickers:
+    for i, ticker in enumerate(tickers, 1):
         try:
             result = analyze_stock(ticker)
-            results.append(result)
             
-            if result.get("error"):
-                error_count += 1
+            if result.get("skip"):
+                skip_count += 1
+                print(f"[{i:3d}/{len(tickers)}] ⏭️  {ticker}")
             else:
                 success_count += 1
-                
+                results.append(result)
+                print(f"[{i:3d}/{len(tickers)}] ✅ {ticker} - {result.get('score', 0):.0f}")
+
         except Exception as e:
-            print(f"  ❌ {ticker} hatası: {e}")
-            error_count += 1
-            results.append({
-                "ticker": ticker,
-                "score": 0,
-                "error": str(e)
-            })
+            skip_count += 1
+            print(f"[{i:3d}/{len(tickers)}] ❌ {ticker}")
 
-    print(f"\n✅ Başarılı: {success_count} | ❌ Hata: {error_count}")
+    print(f"\n✅ Başarılı: {success_count} | ⏭️  Geçildi: {skip_count}")
 
-    # Score'a göre azalan sıra
     results.sort(key=lambda x: x.get("score", 0), reverse=True)
 
     return results
-
-
-if __name__ == "__main__":
-    # Test: Sadece 3 hisse analiz et
-    test_tickers = ["THYAO.IS", "AAPL", "NVDA"]
-    results = analyze_all_stocks(test_tickers)
-
-    print("\n\n📋 SONUÇLAR:")
-    print("=" * 60)
-    for r in results:
-        print(f"\n🏷️  {r['ticker']}")
-        print(f"   Skor: {r.get('score', 0)}/100")
-        print(f"   Fiyat: {r.get('current_price', 'N/A')}")
-        if "signals" in r:
-            for sig in r["signals"][:3]:
-                print(f"   → {sig}")
-        if "fibonacci" in r and r['fibonacci']:
-            print(f"   Fibonacci: {r['fibonacci']}")
