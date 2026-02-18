@@ -27,8 +27,8 @@ jobs:
       - name: Botu Calistir
         env:
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           MAIL_SENDER: ${{ secrets.MAIL_SENDER }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           MAIL_RECIPIENT: ${{ secrets.MAIL_RECIPIENT }}
         run: |
           python main_bot.py --mode run
