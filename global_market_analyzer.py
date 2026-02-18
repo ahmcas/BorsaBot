@@ -1,5 +1,5 @@
 # ============================================================
-# global_market_analyzer.py — Küresel Piyasa Analizi (v3 - FINAL KOMPLE)
+# global_market_analyzer.py — Küresel Piyasa Analizi (v4 - KOMPLE FINAL)
 # ============================================================
 # Tüm Özellikleri:
 # 1. ABD Dış Borcu Analizi
@@ -17,6 +17,7 @@
 
 import requests
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta
 import json
 from collections import defaultdict
@@ -34,6 +35,8 @@ except:
     import subprocess
     subprocess.run(["pip", "install", "yfinance"], check=True)
     import yfinance as yf
+
+import config
 
 
 class USDebtAnalyzer:
@@ -60,12 +63,15 @@ class USDebtAnalyzer:
             debt_data = []
             
             for record in records:
-                if record['value']:
-                    debt_data.append({
-                        "year": int(record['date']),
-                        "debt": float(record['value']),
-                        "debt_billion": float(record['value']) / 1e9
-                    })
+                if record and record.get('value'):
+                    try:
+                        debt_data.append({
+                            "year": int(record['date']),
+                            "debt": float(record['value']),
+                            "debt_billion": float(record['value']) / 1e9
+                        })
+                    except:
+                        continue
             
             debt_data.sort(key=lambda x: x['year'])
             
@@ -192,7 +198,7 @@ class CommodityAnalyzer:
             
             for name, ticker in commodities.items():
                 try:
-                    data = yf.download(ticker, period="1d", progress=False)
+                    data = yf.download(ticker, period="1d", progress=False, timeout=10)
                     if not data.empty:
                         current = float(data["Close"].iloc[-1])
                         prev_close = float(data["Close"].iloc[-2]) if len(data) > 1 else current
@@ -204,7 +210,7 @@ class CommodityAnalyzer:
                             "change": round(change_pct, 2),
                             "trend": "📈" if change_pct > 0 else "📉"
                         }
-                except:
+                except Exception as e:
                     continue
             
             return prices if prices else None
@@ -229,7 +235,7 @@ class CommodityAnalyzer:
             for name, (ticker, key) in commodities.items():
                 try:
                     # 10 yıllık veri
-                    data = yf.download(ticker, period="10y", progress=False)
+                    data = yf.download(ticker, period="10y", progress=False, timeout=10)
                     
                     if not data.empty:
                         current = float(data["Close"].iloc[-1])
@@ -248,7 +254,7 @@ class CommodityAnalyzer:
                             "distance_to_high": round((all_time_high - current) / all_time_high * 100, 1),
                             "events": CommodityAnalyzer.COMMODITY_EVENTS.get(key, [])
                         }
-                except:
+                except Exception as e:
                     continue
             
             return records if records else None
@@ -657,8 +663,7 @@ class VIXAnalyzer:
     def get_vix_level():
         """VIX seviyesini çek"""
         try:
-            # VIX futures
-            vix_data = yf.download("^VIX", period="1d", progress=False)
+            vix_data = yf.download("^VIX", period="1d", progress=False, timeout=10)
             
             if vix_data.empty:
                 return None
@@ -812,37 +817,37 @@ class CommodityStockCorrelation:
     CORRELATIONS = {
         "gold": {
             "positive": [
-                "ISA.IS",  # İş Bankası (para arması)
+                "ISA.IS",  # İş Bankası
                 "GARAN.IS",  # Garanti
                 "AKBANK.IS"  # Akbank
             ],
             "negative": [
-                "TCELL.IS",  # Teknoloji hisseleri
+                "TCELL.IS",
                 "VESTEL.IS"
             ],
             "explanation": "Altın yükselirse dolar zayıf, finans hisseleri düşer"
         },
         "oil": {
             "positive": [
-                "TUPAS.IS",  # Türkiye Petrol
-                "ENKA.IS",  # Enerji şirketleri
+                "TUPAS.IS",
+                "ENKA.IS",
                 "AYGAZ.IS"
             ],
             "negative": [
-                "FROTO.IS",  # Otomotiv
+                "FROTO.IS",
                 "OTKAR.IS",
-                "TCELL.IS"  # Teknoloji
+                "TCELL.IS"
             ],
-            "explanation": "Petrol yükselirse taşım maliyetleri artır, marjlar azalır"
+            "explanation": "Petrol yükselirse taşım maliyetleri artır"
         },
         "copper": {
             "positive": [
-                "ASELS.IS",  # Aselsan (savunma)
-                "SISE.IS",  # Şişecam (inşaat)
-                "ARÇEL.IS"  # Arçelik
+                "ASELS.IS",
+                "SISE.IS",
+                "ARÇEL.IS"
             ],
             "negative": [],
-            "explanation": "Bakır endüstriyel talep göstergesidir, ekonomik büyümeyi işaret eder"
+            "explanation": "Bakır endüstriyel talep göstergesidir"
         },
         "silver": {
             "positive": [
@@ -851,7 +856,7 @@ class CommodityStockCorrelation:
                 "SISE.IS"
             ],
             "negative": [],
-            "explanation": "Gümüş, endüstriyel kullanım ve yatırım talebini gösterir"
+            "explanation": "Gümüş endüstriyel kullanım göstergesidir"
         }
     }
     
@@ -888,7 +893,6 @@ class GeopoliticalNewsIntegration:
     def get_geopolitical_news():
         """Jeopolitik haberlerini NewsAPI'den çek"""
         try:
-            import config
             api_key = config.NEWS_API_KEY
             
             if not api_key or api_key == "YOUR_NEWS_API_KEY_HERE":
@@ -924,7 +928,7 @@ class GeopoliticalNewsIntegration:
                     data = response.json()
                     
                     if data.get("articles"):
-                        for article in data["articles"][:1]:  # Top 1
+                        for article in data["articles"][:1]:
                             all_news.append({
                                 "keyword": keyword,
                                 "title": article.get("title", ""),
@@ -944,12 +948,12 @@ class GeopoliticalNewsIntegration:
 
 
 class SupplyChainMonitor:
-    """Tedarik Zinciri Takibi (RAM, Çip, vb)"""
+    """Tedarik Zinciri Takibi"""
     
     SUPPLY_CHAIN_INDICATORS = {
         "ram_shortage": {
-            "status": "normal",  # normal, shortage, excess
-            "indicator_value": 50,  # 0-100 scale
+            "status": "normal",
+            "indicator_value": 50,
             "impact": {
                 "positive_sectors": ["gıda", "finans"],
                 "negative_sectors": ["teknoloji", "otomotiv"]
@@ -972,7 +976,7 @@ class SupplyChainMonitor:
                 "positive_sectors": ["gıda"],
                 "negative_sectors": ["perakende", "otomotiv"]
             },
-            "explanation": "Gemi gecikmesi → Maliyetler artır, tedarik sorunları"
+            "explanation": "Gemi gecikmesi → Maliyetler artır"
         },
         "energy_crisis": {
             "status": "normal",
@@ -1015,8 +1019,12 @@ class SupplyChainMonitor:
         }
 
 
+# ═══════════════════════════════════════════════════════════
+# Helper Fonksiyonlar
+# ═══════════════════════════════════════════════════════════
+
 def calculate_trend(data):
-    """Trend hesapla (artan/azalan/sabit)"""
+    """Trend hesapla"""
     if len(data) < 2:
         return "Bilinmiyor"
     
