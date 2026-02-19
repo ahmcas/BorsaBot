@@ -93,8 +93,8 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
             fibonacci = result.get("fibonacci", {})
             current_price = result.get("current_price", 0)
             
-            support = fibonacci.get("fib_0.618", current_price * 0.95)
-            resistance = fibonacci.get("fib_0.236", current_price * 1.05)
+            support = fibonacci.get("fib_0.618", current_price * 0.93)
+            resistance = fibonacci.get("fib_0.236", current_price * 1.08)
             
             rr = ScoreCalculator.calculate_reward_risk(current_price, support, resistance)
             
@@ -136,25 +136,43 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         if not candidates:
             return []
         
-        # Swing Trade Filtreleri
-        filtered = []
-        for c in candidates:
-            # 1. Trend filtresi
-            if c["trend"] not in ("Yükseliş", "Güçlü Yükseliş"):
-                continue
-            # 2. Momentum filtresi
-            if (c.get("momentum_pct") or 0) <= 0:
-                continue
-            # 3. Reward/Risk filtresi
-            if c["reward_risk_ratio"] < config.MIN_REWARD_RISK:
-                continue
-            # 4. Skor filtresi
-            if c["score"] < config.MIN_BUY_SCORE:
-                continue
-            filtered.append(c)
-        
-        # Composite sıralama: R/R × Skor
-        filtered.sort(key=lambda x: x["reward_risk_ratio"] * x["score"], reverse=True)
+        # Swing Trade Filtreleri — 3 aşamalı kademeli sistem
+        _sell_ratings = ("🔴 SAT", "🟠 AZALT")
+
+        # Aşama 1 (İdeal): Trend Yükseliş/Güçlü Yükseliş + Momentum > 0 + R/R ≥ 0.8 + Skor ≥ 60 + rating != SAT/AZALT
+        filtered = [
+            c for c in candidates
+            if c["trend"] in ("Yükseliş", "Güçlü Yükseliş")
+            and (c.get("momentum_pct") or 0) > 0
+            and c["reward_risk_ratio"] >= config.MIN_REWARD_RISK
+            and c["score"] >= 60
+            and determine_rating(c["score"]) not in _sell_ratings
+        ]
+
+        # Aşama 2 (Gevşek): Trend != Düşüş/Güçlü Düşüş + Skor ≥ 55 + rating != SAT/AZALT
+        if len(filtered) < max_count:
+            stage2 = [
+                c for c in candidates
+                if c["trend"] not in ("Düşüş", "Güçlü Düşüş")
+                and c["score"] >= 55
+                and determine_rating(c["score"]) not in _sell_ratings
+                and c not in filtered
+            ]
+            filtered = filtered + stage2
+
+        # Aşama 3 (Son çare): Skor ≥ 50 + sadece AL sinyali (GÜÇLÜ AL veya AL)
+        if len(filtered) < max_count:
+            _buy_ratings = ("🔥 GÜÇLÜ AL", "🟢 AL")
+            stage3 = [
+                c for c in candidates
+                if c["score"] >= 50
+                and determine_rating(c["score"]) in _buy_ratings
+                and c not in filtered
+            ]
+            filtered = filtered + stage3
+
+        # Ağırlıklı sıralama formülü
+        filtered.sort(key=lambda x: (x["score"] * 0.5) + (x["reward_risk_ratio"] * 10 * 0.3) + ((x.get("momentum_pct") or 0) * 2 * 0.2), reverse=True)
         selected = filtered[:max_count]
         
         print(f"✅ {len(selected)} hisse seçildi (filtreden geçen: {len(filtered)}/{len(candidates)}):")
