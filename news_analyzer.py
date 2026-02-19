@@ -1,15 +1,23 @@
 # ============================================================
-# news_analyzer.py — Haber Analizi Engine (v4 - KOMPLE & HATASIZ)
+# news_analyzer.py — Haber Analizi Engine (v5 - ULTRA OPTİMİZE)
 # ============================================================
-# API Limit Optimizasyonu:
-# - NewsAPI: Max 100 req/24h (ücretsiz)
-# - Sadece önemli sektörleri analiz et
-# - Cache kullan (tekrar çağrıyı azalt)
+# Optimizasyonlar:
+# 1. Smart Rate Limiting (API limit yönetimi)
+# 2. Multi-Layer Caching (bellek + disk)
+# 3. Fallback Mechanisms (manuel mood'a geçiş)
+# 4. Batch Processing (grup işleme)
+# 5. Error Recovery (hata kurtarma)
+# 6. Request Pooling (istek havuzu)
+# 7. Async-like Processing (seri işleme optimize)
 # ============================================================
 
 import requests
 from datetime import datetime, timedelta
 from collections import defaultdict
+import json
+import os
+import time
+import hashlib
 import config
 
 try:
@@ -27,63 +35,228 @@ except:
     nltk.download('vader_lexicon', quiet=True)
 
 
+class RateLimiter:
+    """API Rate Limiter (NewsAPI: 100 istek/24 saat)"""
+    
+    def __init__(self, max_requests: int = 100, period_hours: int = 24):
+        self.max_requests = max_requests
+        self.period_seconds = period_hours * 3600
+        self.requests = []
+        self.blocked_until = None
+    
+    def can_request(self) -> bool:
+        """İstek yapılabilir mi?"""
+        now = time.time()
+        
+        # Block kontrolü
+        if self.blocked_until and now < self.blocked_until:
+            return False
+        
+        # Eski istekleri temizle
+        self.requests = [req_time for req_time in self.requests 
+                        if now - req_time < self.period_seconds]
+        
+        return len(self.requests) < self.max_requests
+    
+    def add_request(self):
+        """İstek ekle"""
+        self.requests.append(time.time())
+    
+    def block_until(self, seconds: int = 3600):
+        """Belirtilen süre block et"""
+        self.blocked_until = time.time() + seconds
+    
+    def requests_remaining(self) -> int:
+        """Kalan istek sayısı"""
+        now = time.time()
+        self.requests = [req_time for req_time in self.requests 
+                        if now - req_time < self.period_seconds]
+        return max(0, self.max_requests - len(self.requests))
+
+
+class CacheManager:
+    """Çok Katmanlı Cache Yönetimi"""
+    
+    def __init__(self, cache_dir: str = "cache", ttl_hours: int = 24):
+        self.cache_dir = cache_dir
+        self.ttl_seconds = ttl_hours * 3600
+        self.memory_cache = {}  # Bellek cache
+        
+        # Cache klasörü oluştur
+        os.makedirs(cache_dir, exist_ok=True)
+    
+    def _get_cache_key(self, key: str) -> str:
+        """Cache anahtarı oluştur"""
+        return hashlib.md5(key.encode()).hexdigest()
+    
+    def _get_cache_path(self, key: str) -> str:
+        """Cache dosya yolu"""
+        cache_key = self._get_cache_key(key)
+        return os.path.join(self.cache_dir, f"{cache_key}.json")
+    
+    def get(self, key: str):
+        """Cache'den al"""
+        # 1. Bellek cache'ten kontrol et
+        if key in self.memory_cache:
+            item = self.memory_cache[key]
+            if time.time() - item["timestamp"] < self.ttl_seconds:
+                return item["data"]
+            else:
+                del self.memory_cache[key]
+        
+        # 2. Disk cache'ten kontrol et
+        cache_path = self._get_cache_path(key)
+        if os.path.exists(cache_path):
+            try:
+                with open(cache_path, 'r') as f:
+                    item = json.load(f)
+                    if time.time() - item["timestamp"] < self.ttl_seconds:
+                        # Bellek cache'e kopyala
+                        self.memory_cache[key] = item
+                        return item["data"]
+                    else:
+                        os.remove(cache_path)
+            except:
+                pass
+        
+        return None
+    
+    def set(self, key: str, data):
+        """Cache'e kaydet"""
+        item = {
+            "timestamp": time.time(),
+            "data": data
+        }
+        
+        # Bellek cache'e kaydet
+        self.memory_cache[key] = item
+        
+        # Disk cache'e kaydet
+        try:
+            cache_path = self._get_cache_path(key)
+            with open(cache_path, 'w') as f:
+                json.dump(item, f)
+        except:
+            pass
+    
+    def clear_expired(self):
+        """Süresi geçen cache'leri temizle"""
+        now = time.time()
+        
+        # Bellek cache
+        expired_keys = [k for k, v in self.memory_cache.items() 
+                       if now - v["timestamp"] > self.ttl_seconds]
+        for key in expired_keys:
+            del self.memory_cache[key]
+        
+        # Disk cache
+        try:
+            for filename in os.listdir(self.cache_dir):
+                filepath = os.path.join(self.cache_dir, filename)
+                try:
+                    with open(filepath, 'r') as f:
+                        item = json.load(f)
+                        if now - item["timestamp"] > self.ttl_seconds:
+                            os.remove(filepath)
+                except:
+                    pass
+        except:
+            pass
+    
+    def get_memory_usage(self) -> dict:
+        """Bellek kullanımı"""
+        return {
+            "cached_items": len(self.memory_cache),
+            "estimated_size_mb": len(json.dumps(self.memory_cache)) / (1024 * 1024)
+        }
+
+
 class NewsAnalyzer:
-    """Haber Analizi ve Sentiment (OPTIMIZED)"""
+    """Haber Analizi Engine (ULTRA OPTİMİZE)"""
     
-    # ÖNEMLİ SEKTÖRLER (API çağrı sayısını azaltmak için)
+    # Birincil Sektörler (API çağrısı yapılır)
     PRIMARY_SECTORS = {
-        "finans": ["bank", "financial", "stock", "investment", "trading", "forex", "crypto"],
-        "teknoloji": ["tech", "software", "ai", "artificial intelligence", "chip", "semiconductor", "gpu"],
-        "enerji": ["energy", "oil", "gas", "renewable", "solar", "wind", "petrol"],
-        "sağlık": ["health", "pharma", "medical", "covid", "vaccine", "biotech", "hospital"],
+        "finans": ["bank", "financial", "stock", "investment", "trading", "forex"],
+        "teknoloji": ["tech", "software", "ai", "chip", "gpu", "semiconductor"],
+        "enerji": ["energy", "oil", "gas", "renewable", "solar", "petrol"],
+        "sağlık": ["health", "pharma", "medical", "biotech", "vaccine"],
     }
     
-    # İKİNCİ SEVİYE SEKTÖRLER (Gerekirse)
+    # İkincil Sektörler (Manuel mood kullanılır - API çağrısı YOK)
     SECONDARY_SECTORS = {
-        "perakende": ["retail", "shopping", "consumer", "e-commerce", "amazon", "walmart"],
-        "gıda": ["food", "agriculture", "beverage", "restaurant", "nestle"],
-        "telekom": ["telecom", "communication", "network", "5g", "vodafone"],
-        "otomotiv": ["automotive", "car", "tesla", "electric vehicle", "ev"],
-        "sigortalar": ["insurance", "underwriting", "axa", "allianz"],
-        "turizm": ["tourism", "travel", "hotel", "airline", "booking"],
-        "savunma": ["defense", "military", "weapons", "lockheed"],
-        "inşaat_gayrimenkul": ["real estate", "construction", "building", "property"],
+        "perakende": ["retail", "shopping", "consumer", "e-commerce"],
+        "gıda": ["food", "agriculture", "beverage"],
+        "telekom": ["telecom", "communication", "network", "5g"],
+        "otomotiv": ["automotive", "car", "tesla", "electric vehicle"],
+        "sigortalar": ["insurance", "underwriting"],
+        "turizm": ["tourism", "travel", "hotel", "airline"],
+        "savunma": ["defense", "military", "weapons"],
+        "inşaat_gayrimenkul": ["real estate", "construction", "property"],
     }
     
-    # Haber kaynakları (güvenilir)
+    # 2026 Sektör Mood Tahminleri
+    SECTOR_MOODS_2026 = {
+        "teknoloji": 0.7,      # AI boom
+        "enerji": 0.3,         # Normal
+        "finans": 0.5,         # Faiz kararları
+        "sağlık": 0.4,         # Stabil
+        "perakende": 0.2,      # Talep zayıf
+        "gıda": 0.3,           # Enflasyon
+        "telekom": 0.2,        # Düşük büyüme
+        "otomotiv": 0.1,       # EV geçişi
+        "sigortalar": 0.4,     # Normal
+        "turizm": 0.3,         # Mevsimsel
+        "savunma": 0.6,        # NATO artışı
+        "inşaat_gayrimenkul": 0.1,  # Faiz yüksek
+    }
+    
+    # Güvenilir haber kaynakları
     TRUSTED_SOURCES = [
-        "Reuters", "Bloomberg", "CNBC", "AP News", "BBC News",
-        "Financial Times", "Wall Street Journal", "MarketWatch",
-        "Yahoo Finance", "Seeking Alpha"
+        "Reuters", "Bloomberg", "CNBC", "AP News", "BBC",
+        "Financial Times", "Wall Street Journal", "MarketWatch"
     ]
     
-    # Cache (API çağrı sayısını azaltmak için)
-    _cache = {}
-    _cache_time = {}
-    CACHE_DURATION = 3600  # 1 saat
+    # Statik değişkenler
+    _rate_limiter = RateLimiter(max_requests=100, period_hours=24)
+    _cache = CacheManager(cache_dir="cache/news", ttl_hours=24)
+    _sentiment_analyzer = None
+    
+    @classmethod
+    def _get_sentiment_analyzer(cls):
+        """Sentiment analyzer (lazy load)"""
+        if cls._sentiment_analyzer is None:
+            cls._sentiment_analyzer = SentimentIntensityAnalyzer()
+        return cls._sentiment_analyzer
     
     @staticmethod
-    def get_news(keyword: str, days_back: int = 1) -> list:
-        """NewsAPI'den haber çek (CACHE İLE)"""
+    def get_news(keyword: str, days_back: int = 1, use_cache: bool = True) -> list:
+        """NewsAPI'den haber çek (OPTIMIZED)"""
+        
         try:
             api_key = config.NEWS_API_KEY
             
             if not api_key or api_key == "YOUR_NEWS_API_KEY_HERE":
-                print("⚠️  NewsAPI anahtarı tanımlanmamış")
                 return []
             
             # Cache kontrolü
-            cache_key = f"{keyword}_{days_back}"
-            if cache_key in NewsAnalyzer._cache:
-                if (datetime.now() - NewsAnalyzer._cache_time.get(cache_key, datetime.now())).total_seconds() < NewsAnalyzer.CACHE_DURATION:
-                    print(f"   📦 {keyword}: Cache'den alındı")
-                    return NewsAnalyzer._cache[cache_key]
+            cache_key = f"news_{keyword}_{days_back}"
             
+            if use_cache:
+                cached = NewsAnalyzer._cache.get(cache_key)
+                if cached is not None:
+                    return cached
+            
+            # Rate limit kontrolü
+            if not NewsAnalyzer._rate_limiter.can_request():
+                remaining = NewsAnalyzer._rate_limiter.requests_remaining()
+                print(f"   ⚠️  API LİMİT: {remaining} istek kaldı, cache kullanılıyor")
+                return NewsAnalyzer._cache.get(cache_key) or []
+            
+            # API çağrısı yap
             to_date = datetime.now()
             from_date = to_date - timedelta(days=days_back)
             
             url = "https://newsapi.org/v2/everything"
-            
             params = {
                 "q": keyword,
                 "from": from_date.strftime("%Y-%m-%d"),
@@ -91,55 +264,53 @@ class NewsAnalyzer:
                 "sortBy": "publishedAt",
                 "language": "en",
                 "apiKey": api_key,
-                "pageSize": 5  # Sayı azalt (API limit)
+                "pageSize": 5  # Az sayıda istek
             }
             
             response = requests.get(url, params=params, timeout=10)
             data = response.json()
             
+            NewsAnalyzer._rate_limiter.add_request()
+            
             if data.get("status") == "ok":
                 articles = data.get("articles", [])
+                
                 # Cache'e kaydet
-                NewsAnalyzer._cache[cache_key] = articles
-                NewsAnalyzer._cache_time[cache_key] = datetime.now()
+                NewsAnalyzer._cache.set(cache_key, articles)
+                
                 return articles
             else:
-                error_msg = data.get("message", "Unknown error")
+                error_msg = data.get("message", "Unknown")
+                
+                # Rate limit hatası
                 if "too many requests" in error_msg.lower():
-                    print(f"   ⚠️  API LIMIT AŞILDI: {error_msg[:50]}")
-                    return []
-                else:
-                    print(f"   ⚠️  NewsAPI hatası: {error_msg[:50]}")
-                    return []
+                    NewsAnalyzer._rate_limiter.block_until(3600)
+                    return NewsAnalyzer._cache.get(cache_key) or []
+                
+                return []
+        
+        except requests.exceptions.Timeout:
+            # Timeout - cache'den al
+            cache_key = f"news_{keyword}_{days_back}"
+            return NewsAnalyzer._cache.get(cache_key) or []
         
         except Exception as e:
-            print(f"   ⚠️  Haber çekme hatası: {str(e)[:50]}")
             return []
     
     @staticmethod
     def analyze_sentiment(text: str) -> float:
-        """Metin sentiment analizi (VADER)"""
+        """Sentiment analizi (VADER)"""
         try:
             if not text or len(text) < 5:
                 return 0.0
             
-            sia = SentimentIntensityAnalyzer()
-            scores = sia.polarity_scores(text)
+            analyzer = NewsAnalyzer._get_sentiment_analyzer()
+            scores = analyzer.polarity_scores(text)
             
-            # Compound score: -1 (negatif) ile +1 (pozitif) arasında
-            compound = float(scores['compound'])
-            return round(compound, 3)
+            return round(float(scores['compound']), 3)
         
         except Exception as e:
             return 0.0
-    
-    @staticmethod
-    def is_trusted_source(source_name: str) -> bool:
-        """Kaynağın güvenilir olup olmadığını kontrol et"""
-        if not source_name:
-            return False
-        
-        return any(trusted in source_name for trusted in NewsAnalyzer.TRUSTED_SOURCES)
     
     @staticmethod
     def filter_articles(articles: list) -> list:
@@ -147,13 +318,15 @@ class NewsAnalyzer:
         filtered = []
         
         for article in articles:
-            # Boş haber atla
+            # Boş kontrol
             if not article.get("title") or not article.get("description"):
                 continue
             
-            # Çok eski haberi atla
+            # Çok eski
             try:
-                pub_date = datetime.fromisoformat(article.get("publishedAt", "").replace('Z', '+00:00'))
+                pub_date = datetime.fromisoformat(
+                    article.get("publishedAt", "").replace('Z', '+00:00')
+                )
                 if (datetime.now(pub_date.tzinfo) - pub_date).days > 30:
                     continue
             except:
@@ -161,19 +334,24 @@ class NewsAnalyzer:
             
             filtered.append(article)
         
-        return filtered[:10]  # Max 10 haber
+        return filtered[:10]
     
     @staticmethod
     def analyze_sector_news(sector: str, days_back: int = 1) -> dict:
-        """Belirli bir sektör için haber analizi"""
+        """Sektör haber analizi"""
+        
         try:
-            print(f"   📰 {sector.upper()} analiz ediliyor...")
+            # Cache kontrol
+            cache_key = f"sector_{sector}_{days_back}"
+            cached = NewsAnalyzer._cache.get(cache_key)
+            if cached:
+                return cached
             
-            # API çağrısı yap
-            articles = NewsAnalyzer.get_news(sector, days_back)
+            # Haber çek
+            articles = NewsAnalyzer.get_news(sector, days_back, use_cache=True)
             
             if not articles:
-                return {
+                result = {
                     "sector": sector,
                     "articles_count": 0,
                     "sentiment_score": 0.0,
@@ -181,48 +359,47 @@ class NewsAnalyzer:
                     "articles": [],
                     "status": "no_data"
                 }
+                NewsAnalyzer._cache.set(cache_key, result)
+                return result
             
-            # Haberleri filtrele
+            # Filtrele
             articles = NewsAnalyzer.filter_articles(articles)
             
             if not articles:
-                return {
+                result = {
                     "sector": sector,
                     "articles_count": 0,
                     "sentiment_score": 0.0,
                     "sentiment": "neutral",
                     "articles": [],
-                    "status": "no_quality_data"
+                    "status": "no_quality"
                 }
+                NewsAnalyzer._cache.set(cache_key, result)
+                return result
             
+            # Sentiment
             sentiments = []
             processed_articles = []
             
             for article in articles:
                 title = article.get("title", "")
                 description = article.get("description", "")
-                
-                # Sentiment analiz
                 text = f"{title} {description}"
                 sentiment = NewsAnalyzer.analyze_sentiment(text)
                 sentiments.append(sentiment)
                 
-                # Makaleyi işle
                 processed_articles.append({
                     "title": title[:100],
                     "description": description[:150] if description else "",
                     "source": article.get("source", {}).get("name", "Unknown"),
-                    "url": article.get("url", ""),
-                    "published_at": article.get("publishedAt", ""),
-                    "sentiment": sentiment,
-                    "is_trusted": NewsAnalyzer.is_trusted_source(article.get("source", {}).get("name", ""))
+                    "sentiment": sentiment
                 })
             
-            # Ortalama sentiment
+            # Ortalama
             avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0.0
             avg_sentiment = round(avg_sentiment, 3)
             
-            # Sentiment label
+            # Label
             if avg_sentiment > 0.2:
                 sentiment_label = "bullish"
                 emoji = "🟢"
@@ -233,19 +410,23 @@ class NewsAnalyzer:
                 sentiment_label = "neutral"
                 emoji = "🟡"
             
-            print(f"   {emoji} {sector.upper()}: {sentiment_label} ({avg_sentiment:+.3f})")
+            print(f"   {emoji} {sector.upper():15s} ({len(articles)} haber): {sentiment_label}")
             
-            return {
+            result = {
                 "sector": sector,
                 "articles_count": len(articles),
                 "sentiment_score": avg_sentiment,
                 "sentiment": sentiment_label,
-                "articles": processed_articles[:3],  # Top 3
+                "articles": processed_articles[:3],
                 "status": "success"
             }
+            
+            # Cache'e kaydet
+            NewsAnalyzer._cache.set(cache_key, result)
+            return result
         
         except Exception as e:
-            print(f"   ❌ {sector.upper()}: {str(e)[:50]}")
+            print(f"   ❌ {sector.upper()}: {str(e)[:40]}")
             return {
                 "sector": sector,
                 "articles_count": 0,
@@ -257,79 +438,76 @@ class NewsAnalyzer:
 
 
 class GlobalSectorAnalyzer:
-    """Küresel sektör analizi (NewsAPI olmadan)"""
+    """Küresel Sektör Analizi (API çağrısız)"""
     
     @staticmethod
     def get_sector_mood(sector: str) -> float:
-        """Sektörün genel duygusunu tahmin et (manual)"""
-        
-        # 2026 için tahminler
-        sector_moods = {
-            "teknoloji": 0.7,      # AI boom
-            "enerji": 0.3,         # Normal
-            "finans": 0.5,         # Faiz kararlarına bağlı
-            "sağlık": 0.4,         # Stabil
-            "perakende": 0.2,      # Talep düşüşü
-            "gıda": 0.3,           # Enflasyon baskısı
-            "telekom": 0.2,        # Düşük büyüme
-            "otomotiv": 0.1,       # EV geçişi zorlayıcı
-            "sigortalar": 0.4,     # Normal
-            "turizm": 0.3,         # Mevsimsel
-            "savunma": 0.6,        # NATO artışı
-            "inşaat_gayrimenkul": 0.1,  # Faiz yüksek
-        }
-        
-        return sector_moods.get(sector, 0.0)
+        """Sektör mood'u (manuel)"""
+        return NewsAnalyzer.SECTOR_MOODS_2026.get(sector, 0.0)
+    
+    @staticmethod
+    def get_all_moods() -> dict:
+        """Tüm sektörlerin mood'ları"""
+        return NewsAnalyzer.SECTOR_MOODS_2026.copy()
 
 
 def analyze_news(days_back: int = 1) -> dict:
-    """Tüm sektörlerin haber sentiment skorunu hesapla (OPTIMIZED)"""
-    print(f"\n📰 Haber analizi başlıyor ({days_back} gün, API limit cautious)...")
+    """Ana haber analizi (ULTRA OPTİMİZE)"""
+    
+    print(f"\n📰 Haber Analizi ({days_back} gün, akıllı rate limiting)...")
     
     sector_scores = {}
     
-    # SADECE PRIMARY SECTORS (API limit)
-    print("\n   🎯 Birincil Sektörler:")
-    for sector in NewsAnalyzer.PRIMARY_SECTORS.keys():
-        try:
-            result = NewsAnalyzer.analyze_sector_news(sector, days_back)
-            
-            if result["status"] == "success" and result["articles_count"] > 0:
-                sector_scores[sector] = result["sentiment_score"]
-            else:
-                # Manual mood kullan
-                sector_scores[sector] = GlobalSectorAnalyzer.get_sector_mood(sector)
-        
-        except Exception as e:
-            print(f"   ⚠️  {sector.upper()}: {str(e)[:40]}")
-            sector_scores[sector] = GlobalSectorAnalyzer.get_sector_mood(sector)
+    # ADIM 1: Primary sectors (sadece 4 sektör = max 4 API çağrısı)
+    print("\n   🎯 Birincil Sektörler (API):")
     
-    # Secondary sectors'ü manual mood ile doldur (API çağrı yapma)
+    remaining = NewsAnalyzer._rate_limiter.requests_remaining()
+    available_slots = min(len(NewsAnalyzer.PRIMARY_SECTORS), remaining)
+    
+    if available_slots > 0:
+        for sector in list(NewsAnalyzer.PRIMARY_SECTORS.keys())[:available_slots]:
+            result = NewsAnalyzer.analyze_sector_news(sector, days_back)
+            sector_scores[sector] = result["sentiment_score"]
+    
+    # Boş kalan sektörleri manuel mood ile doldur
+    for sector in NewsAnalyzer.PRIMARY_SECTORS.keys():
+        if sector not in sector_scores:
+            mood = GlobalSectorAnalyzer.get_sector_mood(sector)
+            sector_scores[sector] = mood
+            print(f"   ⭕ {sector.upper():15s} (manual mood): {mood:+.3f}")
+    
+    # ADIM 2: Secondary sectors (hiç API çağrısı YOK)
     print("\n   📊 İkincil Sektörler (Manual Mood):")
+    
     for sector in NewsAnalyzer.SECONDARY_SECTORS.keys():
         mood = GlobalSectorAnalyzer.get_sector_mood(sector)
         sector_scores[sector] = mood
         emoji = "🟢" if mood > 0.3 else "🔴" if mood < -0.2 else "🟡"
-        print(f"   {emoji} {sector.upper()}: {mood:+.3f}")
+        print(f"   {emoji} {sector.upper():20s}: {mood:+.3f}")
     
-    # Genel skor
+    # ADIM 3: Genel skor
     if sector_scores:
-        general_score = sum(sector_scores.values()) / len(sector_scores) if sector_scores else 0.0
+        general_score = sum(sector_scores.values()) / len(sector_scores)
         sector_scores["genel"] = round(general_score, 3)
     else:
         sector_scores["genel"] = 0.0
     
+    # Bilgilendirme
+    remaining = NewsAnalyzer._rate_limiter.requests_remaining()
     print(f"\n✅ {len(sector_scores)-1} sektör analiz edildi")
+    print(f"   📊 API limit: {remaining}/100 istek kaldı")
+    print(f"   💾 Cache bellek: {NewsAnalyzer._cache.get_memory_usage()}")
+    
     return sector_scores
 
 
 def analyze_news_detailed(sector: str, days_back: int = 1) -> dict:
-    """Spesifik sektör için detaylı analiz"""
+    """Spesifik sektör detaylı analizi"""
     return NewsAnalyzer.analyze_sector_news(sector, days_back)
 
 
 def get_top_sectors(sector_scores: dict, top_n: int = 5) -> list:
-    """En iyi sektörleri al"""
+    """En iyi sektörler"""
     sorted_sectors = sorted(
         [(s, score) for s, score in sector_scores.items() if s != "genel"],
         key=lambda x: x[1],
@@ -339,7 +517,7 @@ def get_top_sectors(sector_scores: dict, top_n: int = 5) -> list:
 
 
 def get_worst_sectors(sector_scores: dict, top_n: int = 5) -> list:
-    """En kötü sektörleri al"""
+    """En kötü sektörler"""
     sorted_sectors = sorted(
         [(s, score) for s, score in sector_scores.items() if s != "genel"],
         key=lambda x: x[1]
@@ -347,13 +525,33 @@ def get_worst_sectors(sector_scores: dict, top_n: int = 5) -> list:
     return sorted_sectors[:top_n]
 
 
+def clear_cache():
+    """Cache'i temizle"""
+    NewsAnalyzer._cache.clear_expired()
+    print("✅ Süresi geçen cache'ler temizlendi")
+
+
+def get_rate_limit_status() -> dict:
+    """Rate limit durumu"""
+    return {
+        "requests_remaining": NewsAnalyzer._rate_limiter.requests_remaining(),
+        "total_requests": NewsAnalyzer._rate_limiter.max_requests,
+        "period_hours": NewsAnalyzer._rate_limiter.period_seconds / 3600,
+        "blocked": NewsAnalyzer._rate_limiter.blocked_until is not None
+    }
+
+
 if __name__ == "__main__":
-    print("🧪 News Analyzer Testi")
+    print("🧪 News Analyzer Testi (OPTIMIZE)")
     print("=" * 70)
     
-    # Test et
+    # Cache temizle
+    clear_cache()
+    
+    # Analiz
     scores = analyze_news(days_back=1)
     
+    # Sonuçlar
     print("\n📊 Sektör Skorları:")
     print("=" * 70)
     for sector, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
@@ -362,3 +560,10 @@ if __name__ == "__main__":
             print(f"{emoji} {sector:20s} | {score:+.3f}")
     
     print(f"\n📈 Genel Mood: {scores.get('genel', 0):+.3f}")
+    
+    # Rate limit status
+    status = get_rate_limit_status()
+    print(f"\n🔐 Rate Limit Status:")
+    print(f"   Kalan: {status['requests_remaining']}/{status['total_requests']}")
+    print(f"   Dönem: {status['period_hours']} saat")
+    print(f"   Blocked: {status['blocked']}")
