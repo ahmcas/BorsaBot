@@ -177,7 +177,7 @@ def run_analysis(quick: bool = False):
             
             # Email gönder
             print("   📤 Email gönderiliyor...")
-            email_sent = send_email(html_body, chart_paths)
+            email_sent = send_email(html_body, chart_paths, recommendations.get("total_selected", 0))
             
             if email_sent:
                 print("✅ Email başarıyla gönderildi!")
