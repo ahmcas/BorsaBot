@@ -1,10 +1,23 @@
 # ============================================================
-# technical_analyzer.py — Teknik Analiz Engine (v3 - KOMPLE FINAL)
+# technical_analyzer.py — Teknik Analiz Engine (v4 - KOMPLE FINAL)
+# ============================================================
+# Özellikler:
+# 1. RSI (Relative Strength Index)
+# 2. MACD (Moving Average Convergence Divergence)
+# 3. Bollinger Bands
+# 4. SMA (Simple Moving Average)
+# 5. Fibonacci Retracement
+# 6. Momentum
+# 7. Trend Analizi
+# 8. Sinyal Üretimi
+# 9. Skor Hesaplama (0-100)
 # ============================================================
 
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
+import warnings
+warnings.filterwarnings('ignore')
 
 try:
     import yfinance as yf
@@ -21,45 +34,79 @@ class TechnicalAnalyzer:
     
     @staticmethod
     def get_historical_data(ticker: str, period: str = "200d") -> pd.DataFrame:
-        """Tarihi veri çek"""
+        """Tarihi veri çek (HATASIZ)"""
         try:
+            # Veri çek
             df = yf.download(ticker, period=period, progress=False, timeout=30)
             
-            if df.empty:
+            # Boş kontrol
+            if df is None or df.empty or len(df) == 0:
                 return None
             
-            # İngilizce sütun adları
-            df.columns = [col.replace(' ', '').lower() for col in df.columns]
+            # Series ise DataFrame'e çevir
+            if isinstance(df, pd.Series):
+                df = df.to_frame()
             
-            # Gerekli sütunlar kontrol et
-            required_cols = ['close', 'high', 'low', 'volume']
-            if not all(col in df.columns for col in required_cols):
+            # Sütun adlarını normalize et
+            df.columns = [str(col).lower().replace(' ', '_') for col in df.columns]
+            
+            # Gerekli sütunlar var mı?
+            required = ['close', 'high', 'low', 'volume']
+            if not all(col in df.columns for col in required):
+                return None
+            
+            # Veri tiplerini kontrol et
+            for col in required:
+                try:
+                    df[col] = pd.to_numeric(df[col], errors='coerce')
+                except:
+                    pass
+            
+            # NaN satırları sil
+            df = df.dropna()
+            
+            if len(df) < 20:
                 return None
             
             return df
             
         except Exception as e:
-            print(f"[ERROR] Veri çekme hatası ({ticker}): {e}")
             return None
     
     @staticmethod
     def calculate_rsi(prices: pd.Series, period: int = 14) -> float:
         """RSI (Relative Strength Index) hesapla"""
         try:
-            if len(prices) < period:
+            if prices is None or len(prices) < period + 1:
                 return None
             
-            delta = prices.diff()
-            gain = delta.where(delta > 0, 0.0)
-            loss = (-delta).where(delta < 0, 0.0)
+            # NaN kontrol
+            prices = prices.dropna()
+            if len(prices) < period + 1:
+                return None
             
+            # Fark hesapla
+            delta = prices.diff()
+            
+            # Kazançlar ve kayıplar
+            gain = delta.clip(lower=0)
+            loss = -delta.clip(upper=0)
+            
+            # Ortalama
             avg_gain = gain.rolling(window=period).mean()
             avg_loss = loss.rolling(window=period).mean()
             
+            # RS ve RSI
             rs = avg_gain / avg_loss
             rsi = 100 - (100 / (1 + rs))
             
-            return round(float(rsi.iloc[-1]), 2)
+            current_rsi = float(rsi.iloc[-1])
+            
+            # Sınırla
+            if np.isnan(current_rsi) or np.isinf(current_rsi):
+                return None
+            
+            return round(current_rsi, 2)
             
         except Exception as e:
             return None
@@ -68,17 +115,39 @@ class TechnicalAnalyzer:
     def calculate_macd(prices: pd.Series) -> dict:
         """MACD hesapla"""
         try:
+            if prices is None or len(prices) < 26:
+                return {"macd_line": None, "signal_line": None, "histogram": None}
+            
+            prices = prices.dropna()
+            if len(prices) < 26:
+                return {"macd_line": None, "signal_line": None, "histogram": None}
+            
+            # EMA hesapla
             exp1 = prices.ewm(span=config.MACD_FAST, adjust=False).mean()
             exp2 = prices.ewm(span=config.MACD_SLOW, adjust=False).mean()
             
+            # MACD line
             macd_line = exp1 - exp2
+            
+            # Signal line
             signal_line = macd_line.ewm(span=config.MACD_SIGNAL, adjust=False).mean()
+            
+            # Histogram
             histogram = macd_line - signal_line
             
+            # Son değerler
+            macd_val = float(macd_line.iloc[-1])
+            signal_val = float(signal_line.iloc[-1])
+            hist_val = float(histogram.iloc[-1])
+            
+            # NaN kontrol
+            if np.isnan(macd_val) or np.isnan(signal_val) or np.isnan(hist_val):
+                return {"macd_line": None, "signal_line": None, "histogram": None}
+            
             return {
-                "macd_line": round(float(macd_line.iloc[-1]), 6),
-                "signal_line": round(float(signal_line.iloc[-1]), 6),
-                "histogram": round(float(histogram.iloc[-1]), 6)
+                "macd_line": round(macd_val, 6),
+                "signal_line": round(signal_val, 6),
+                "histogram": round(hist_val, 6)
             }
             
         except Exception as e:
@@ -88,26 +157,60 @@ class TechnicalAnalyzer:
     def calculate_bollinger_bands(prices: pd.Series, period: int = 20, std_dev: float = 2.0) -> dict:
         """Bollinger Bands hesapla"""
         try:
+            if prices is None or len(prices) < period:
+                return {
+                    "upper_band": None,
+                    "middle_band": None,
+                    "lower_band": None,
+                    "position": None
+                }
+            
+            prices = prices.dropna()
+            if len(prices) < period:
+                return {
+                    "upper_band": None,
+                    "middle_band": None,
+                    "lower_band": None,
+                    "position": None
+                }
+            
+            # SMA
             sma = prices.rolling(window=period).mean()
+            
+            # Standart sapma
             std = prices.rolling(window=period).std()
             
-            upper_band = sma + (std_dev * std)
-            lower_band = sma - (std_dev * std)
+            # Bands
+            upper = sma + (std_dev * std)
+            lower = sma - (std_dev * std)
             
-            current_price = prices.iloc[-1]
+            # Son değerler
+            current_price = float(prices.iloc[-1])
+            upper_val = float(upper.iloc[-1])
+            middle_val = float(sma.iloc[-1])
+            lower_val = float(lower.iloc[-1])
+            
+            # NaN kontrol
+            if np.isnan(current_price) or np.isnan(upper_val) or np.isnan(lower_val):
+                return {
+                    "upper_band": None,
+                    "middle_band": None,
+                    "lower_band": None,
+                    "position": None
+                }
             
             # Pozisyon belirle
-            if current_price > upper_band.iloc[-1]:
+            if current_price > upper_val * 0.95:
                 position = "üst"
-            elif current_price < lower_band.iloc[-1]:
+            elif current_price < lower_val * 1.05:
                 position = "alt"
             else:
                 position = "orta"
             
             return {
-                "upper_band": round(float(upper_band.iloc[-1]), 2),
-                "middle_band": round(float(sma.iloc[-1]), 2),
-                "lower_band": round(float(lower_band.iloc[-1]), 2),
+                "upper_band": round(upper_val, 2),
+                "middle_band": round(middle_val, 2),
+                "lower_band": round(lower_val, 2),
                 "position": position
             }
             
@@ -123,11 +226,20 @@ class TechnicalAnalyzer:
     def calculate_sma(prices: pd.Series, period: int) -> float:
         """Simple Moving Average hesapla"""
         try:
+            if prices is None or len(prices) < period:
+                return None
+            
+            prices = prices.dropna()
             if len(prices) < period:
                 return None
             
             sma = prices.rolling(window=period).mean()
-            return round(float(sma.iloc[-1]), 2)
+            sma_val = float(sma.iloc[-1])
+            
+            if np.isnan(sma_val):
+                return None
+            
+            return round(sma_val, 2)
             
         except Exception as e:
             return None
@@ -136,11 +248,56 @@ class TechnicalAnalyzer:
     def calculate_momentum(prices: pd.Series, period: int = 10) -> float:
         """Momentum hesapla (% değişim)"""
         try:
+            if prices is None or len(prices) < period:
+                return None
+            
+            prices = prices.dropna()
             if len(prices) < period:
                 return None
             
-            momentum = ((prices.iloc[-1] - prices.iloc[-period]) / prices.iloc[-period]) * 100
-            return round(float(momentum), 2)
+            current = float(prices.iloc[-1])
+            past = float(prices.iloc[-period])
+            
+            if past == 0 or np.isnan(current) or np.isnan(past):
+                return None
+            
+            momentum = ((current - past) / past) * 100
+            
+            if np.isnan(momentum) or np.isinf(momentum):
+                return None
+            
+            return round(momentum, 2)
+            
+        except Exception as e:
+            return None
+    
+    @staticmethod
+    def calculate_atr(df: pd.DataFrame, period: int = 14) -> float:
+        """Average True Range hesapla (volatilite)"""
+        try:
+            if df is None or len(df) < period + 1:
+                return None
+            
+            high = df['high'].astype(float)
+            low = df['low'].astype(float)
+            close = df['close'].astype(float)
+            
+            # True Range
+            tr1 = high - low
+            tr2 = abs(high - close.shift())
+            tr3 = abs(low - close.shift())
+            
+            tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+            
+            # ATR
+            atr = tr.rolling(window=period).mean()
+            
+            atr_val = float(atr.iloc[-1])
+            
+            if np.isnan(atr_val):
+                return None
+            
+            return round(atr_val, 2)
             
         except Exception as e:
             return None
@@ -149,22 +306,28 @@ class TechnicalAnalyzer:
     def calculate_fibonacci(df: pd.DataFrame, lookback: int = 60) -> dict:
         """Fibonacci Retracement hesapla"""
         try:
+            if df is None or len(df) < lookback:
+                return {}
+            
             high = df["high"].tail(lookback).max()
             low = df["low"].tail(lookback).min()
-            current = df["close"].iloc[-1]
+            current = float(df["close"].iloc[-1])
+            
+            if np.isnan(high) or np.isnan(low) or np.isnan(current):
+                return {}
             
             distance = high - low
             
-            fib_levels = {}
+            fib_levels = {
+                "current": round(current, 2),
+                "high": round(float(high), 2),
+                "low": round(float(low), 2),
+            }
+            
             for level in config.FIBONACCI_LEVELS:
                 fib_levels[f"fib_{level}"] = round(high - (distance * level), 2)
             
-            return {
-                "current": round(current, 2),
-                "high": round(high, 2),
-                "low": round(low, 2),
-                **fib_levels
-            }
+            return fib_levels
             
         except Exception as e:
             return {}
@@ -174,41 +337,53 @@ class TechnicalAnalyzer:
                         sma_long: float, momentum: float, current_price: float) -> list:
         """Teknik sinyaller oluştur"""
         signals = []
+        signal_strength = 0
         
         try:
             # RSI Sinyalleri
-            if rsi and rsi < 30:
-                signals.append(f"📊 RSI {rsi} → Oversold (Al sinyali)")
-            elif rsi and rsi > 70:
-                signals.append(f"📊 RSI {rsi} → Overbought (Sat sinyali)")
+            if rsi is not None:
+                if rsi < 30:
+                    signals.append(f"📊 RSI {rsi:.1f} → Oversold (AL sinyali)")
+                    signal_strength += 1
+                elif rsi > 70:
+                    signals.append(f"📊 RSI {rsi:.1f} → Overbought (SAT sinyali)")
+                    signal_strength -= 1
             
             # MACD Sinyalleri
-            if macd.get("histogram"):
+            if macd.get("histogram") is not None and macd.get("macd_line") is not None:
                 if macd["histogram"] > 0 and macd["macd_line"] > macd["signal_line"]:
                     signals.append("📈 MACD → Bullish (Yukarı kesişim)")
+                    signal_strength += 1
                 elif macd["histogram"] < 0 and macd["macd_line"] < macd["signal_line"]:
                     signals.append("📉 MACD → Bearish (Aşağı kesişim)")
+                    signal_strength -= 1
             
             # Bollinger Bands Sinyalleri
             if bollinger.get("position"):
                 if bollinger["position"] == "alt":
-                    signals.append(f"📊 Bollinger → Alt bant yaklaştı (Al)")
+                    signals.append("📊 Bollinger → Alt bant (AL)")
+                    signal_strength += 1
                 elif bollinger["position"] == "üst":
-                    signals.append(f"📊 Bollinger → Üst bant yaklaştı (Sat)")
+                    signals.append("📊 Bollinger → Üst bant (SAT)")
+                    signal_strength -= 1
             
             # SMA Sinyalleri
             if sma_short and sma_long and current_price:
                 if current_price > sma_short > sma_long:
-                    signals.append(f"📈 SMA → Bullish (Fiyat > SMA20 > SMA50)")
+                    signals.append("📈 SMA → Bullish (Fiyat > SMA20 > SMA50)")
+                    signal_strength += 1
                 elif current_price < sma_short < sma_long:
-                    signals.append(f"📉 SMA → Bearish (Fiyat < SMA20 < SMA50)")
+                    signals.append("📉 SMA → Bearish (Fiyat < SMA20 < SMA50)")
+                    signal_strength -= 1
             
             # Momentum Sinyalleri
-            if momentum:
+            if momentum is not None:
                 if momentum > 5:
                     signals.append(f"📈 Momentum → Güçlü yukarı ({momentum:+.1f}%)")
+                    signal_strength += 1
                 elif momentum < -5:
                     signals.append(f"📉 Momentum → Güçlü aşağı ({momentum:+.1f}%)")
+                    signal_strength -= 1
             
             return signals if signals else ["⚪ Açık sinyal yok"]
             
@@ -224,7 +399,7 @@ class TechnicalAnalyzer:
             score = 50  # Başlangıç
             
             # RSI kontribüsyonu (-15 ile +15)
-            if rsi:
+            if rsi is not None:
                 if rsi < 30:
                     score += 10
                 elif rsi < 40:
@@ -235,7 +410,7 @@ class TechnicalAnalyzer:
                     score -= 5
             
             # MACD kontribüsyonu (-10 ile +10)
-            if macd.get("histogram"):
+            if macd.get("histogram") is not None:
                 if macd["histogram"] > 0:
                     score += 5
                 else:
@@ -260,7 +435,7 @@ class TechnicalAnalyzer:
                     score -= 5
             
             # Momentum kontribüsyonu (-15 ile +15)
-            if momentum:
+            if momentum is not None:
                 if momentum > 10:
                     score += 10
                 elif momentum > 0:
@@ -277,6 +452,57 @@ class TechnicalAnalyzer:
             
         except Exception as e:
             return 50.0
+    
+    @staticmethod
+    def analyze_trend(df: pd.DataFrame) -> dict:
+        """Trend analizi"""
+        try:
+            if df is None or len(df) < 50:
+                return {"trend": "Bilinmiyor", "strength": "N/A"}
+            
+            close = df["close"].astype(float)
+            
+            # SMA hesapla
+            sma_20 = close.rolling(window=20).mean()
+            sma_50 = close.rolling(window=50).mean()
+            
+            current = float(close.iloc[-1])
+            sma_20_val = float(sma_20.iloc[-1])
+            sma_50_val = float(sma_50.iloc[-1])
+            
+            # Trend belirle
+            if current > sma_20_val > sma_50_val:
+                trend = "Güçlü Yükseliş"
+                strength = "Çok Güçlü"
+            elif current > sma_20_val and sma_20_val > sma_50_val:
+                trend = "Yükseliş"
+                strength = "Güçlü"
+            elif current > sma_50_val:
+                trend = "Zayıf Yükseliş"
+                strength = "Zayıf"
+            elif current < sma_20_val < sma_50_val:
+                trend = "Güçlü Düşüş"
+                strength = "Çok Güçlü"
+            elif current < sma_20_val and sma_20_val < sma_50_val:
+                trend = "Düşüş"
+                strength = "Güçlü"
+            elif current < sma_50_val:
+                trend = "Zayıf Düşüş"
+                strength = "Zayıf"
+            else:
+                trend = "Nötr"
+                strength = "Nötr"
+            
+            return {
+                "trend": trend,
+                "strength": strength,
+                "sma_20": sma_20_val,
+                "sma_50": sma_50_val,
+                "current": current
+            }
+            
+        except Exception as e:
+            return {"trend": "Bilinmiyor", "strength": "N/A"}
 
 
 def analyze_all_stocks(ticker_list: list) -> list:
@@ -284,6 +510,7 @@ def analyze_all_stocks(ticker_list: list) -> list:
     print(f"\n📊 Teknik analiz başlıyor ({len(ticker_list)} hisse)...")
     
     results = []
+    successful = 0
     
     for ticker in ticker_list:
         try:
@@ -298,7 +525,7 @@ def analyze_all_stocks(ticker_list: list) -> list:
                 })
                 continue
             
-            close = df["close"].squeeze()
+            close = df["close"]
             
             # Teknik göstergeler hesapla
             rsi = TechnicalAnalyzer.calculate_rsi(close, config.RSI_PERIOD)
@@ -307,6 +534,7 @@ def analyze_all_stocks(ticker_list: list) -> list:
             sma_short = TechnicalAnalyzer.calculate_sma(close, config.SMA_SHORT)
             sma_long = TechnicalAnalyzer.calculate_sma(close, config.SMA_LONG)
             momentum = TechnicalAnalyzer.calculate_momentum(close, 10)
+            atr = TechnicalAnalyzer.calculate_atr(df, 14)
             fibonacci = TechnicalAnalyzer.calculate_fibonacci(df, config.FIBONACCI_LOOKBACK)
             
             # Mevcut fiyat
@@ -322,6 +550,9 @@ def analyze_all_stocks(ticker_list: list) -> list:
                 rsi, macd, bollinger, sma_short, sma_long, momentum, current_price
             )
             
+            # Trend analizi
+            trend_data = TechnicalAnalyzer.analyze_trend(df)
+            
             # Sonuç
             result = {
                 "ticker": ticker,
@@ -334,23 +565,24 @@ def analyze_all_stocks(ticker_list: list) -> list:
                 "sma_short": sma_short,
                 "sma_long": sma_long,
                 "momentum_pct": momentum,
+                "atr": atr,
                 "signals": signals,
                 "fibonacci": fibonacci,
+                "trend": trend_data.get("trend"),
+                "trend_strength": trend_data.get("strength"),
                 "dataframe": df
             }
             
             results.append(result)
+            successful += 1
             
         except Exception as e:
-            print(f"⚠️  {ticker}: {str(e)[:50]}")
             results.append({
                 "ticker": ticker,
                 "skip": True,
                 "reason": str(e)[:100]
             })
     
-    # Başarılı analiz sayısı
-    successful = len([r for r in results if not r.get("skip")])
     print(f"✅ {successful}/{len(ticker_list)} hisse başarıyla analiz edildi")
     
     return results
@@ -358,10 +590,10 @@ def analyze_all_stocks(ticker_list: list) -> list:
 
 if __name__ == "__main__":
     print("🧪 Technical Analyzer Testi")
-    print("=" * 50)
+    print("=" * 70)
     
     # Test
-    test_stocks = ["AKBANK.IS", "AAPL"]
+    test_stocks = ["GARAN.IS", "ISA.IS", "AAPL"]
     results = analyze_all_stocks(test_stocks)
     
     print("\n📊 Sonuçlar:")
@@ -371,3 +603,4 @@ if __name__ == "__main__":
             print(f"  Skor: {result['score']}")
             print(f"  RSI: {result['rsi']}")
             print(f"  Momentum: {result['momentum_pct']:+.2f}%")
+            print(f"  Trend: {result['trend']}")
