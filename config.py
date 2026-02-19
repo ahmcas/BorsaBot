@@ -74,14 +74,14 @@ FIBONACCI_LOOKBACK = 90
 MOMENTUM_PERIOD = 21
 
 # Minimum Reward/Risk oranı
-MIN_REWARD_RISK = 1.2
+MIN_REWARD_RISK = 0.8
 
 # ═══════════════════════════════════════════════════════════
 # SKOR AYARLARI
 # ═══════════════════════════════════════════════════════════
 
 # Minimum alım sinyali skoru (0-100)
-MIN_BUY_SCORE = 68
+MIN_BUY_SCORE = 55
 
 # Maksimum satış sinyali skoru (0-100)
 MAX_SELL_SCORE = 35

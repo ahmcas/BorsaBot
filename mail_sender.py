@@ -74,7 +74,7 @@ def generate_html_body(
                 }}
                 
                 .container {{ 
-                    max-width: 1000px; 
+                    max-width: 750px; 
                     margin: 0 auto; 
                     background: #1c2128;
                     box-shadow: 0 10px 40px rgba(0,0,0,0.5);
@@ -83,12 +83,12 @@ def generate_html_body(
                 .header {{ 
                     background: linear-gradient(135deg, #1a1b27 0%, #2d333b 100%);
                     color: #e6edf3;
-                    padding: 40px 30px;
+                    padding: 25px 20px;
                     text-align: center;
                     border-bottom: 1px solid #30363d;
                 }}
                 
-                .header h1 {{ font-size: 32px; margin-bottom: 10px; color: #58a6ff; }}
+                .header h1 {{ font-size: 22px; margin-bottom: 10px; color: #58a6ff; }}
                 .header p {{ font-size: 14px; opacity: 0.9; color: #8b949e; }}
                 
                 .market-summary {{
@@ -97,7 +97,7 @@ def generate_html_body(
                     padding: 20px 30px;
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    gap: 15px;
+                    gap: 10px;
                     text-align: center;
                 }}
                 
@@ -112,17 +112,17 @@ def generate_html_body(
                 }}
                 
                 .summary-value {{
-                    font-size: 22px;
+                    font-size: 16px;
                     font-weight: bold;
                     color: #58a6ff;
                 }}
                 
-                .content {{ padding: 30px; }}
+                .content {{ padding: 18px; }}
                 
-                .section {{ margin-bottom: 30px; }}
+                .section {{ margin-bottom: 18px; }}
                 
                 .section-title {{ 
-                    font-size: 22px; 
+                    font-size: 16px; 
                     font-weight: bold; 
                     color: #e6edf3;
                     margin-bottom: 20px;
@@ -134,7 +134,7 @@ def generate_html_body(
                     background: #21262d;
                     border-left: 5px solid #58a6ff;
                     border-radius: 8px;
-                    padding: 25px;
+                    padding: 15px;
                     margin-bottom: 20px;
                 }}
                 
@@ -142,7 +142,7 @@ def generate_html_body(
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    margin-bottom: 20px;
+                    margin-bottom: 12px;
                 }}
                 
                 .stock-rank {{
@@ -157,7 +157,7 @@ def generate_html_body(
                 }}
                 
                 .ticker {{ 
-                    font-size: 28px;
+                    font-size: 20px;
                     font-weight: 700;
                     color: #e6edf3;
                 }}
@@ -171,27 +171,27 @@ def generate_html_body(
                 
                 .rating-badge {{ 
                     display: inline-block;
-                    padding: 10px 20px;
+                    padding: 6px 12px;
                     background: #388bfd1a;
                     color: #58a6ff;
                     border: 1px solid #388bfd66;
                     border-radius: 25px;
                     font-weight: bold;
-                    font-size: 14px;
+                    font-size: 12px;
                 }}
                 
                 .metrics {{ 
                     display: grid;
                     grid-template-columns: repeat(3, 1fr);
-                    gap: 15px;
-                    margin-bottom: 20px;
+                    gap: 8px;
+                    margin-bottom: 12px;
                 }}
                 
                 .metric-box {{ 
                     background: #30363d;
                     border: 1px solid #444c56;
                     border-radius: 6px;
-                    padding: 15px;
+                    padding: 10px;
                     text-align: center;
                 }}
                 
@@ -204,7 +204,7 @@ def generate_html_body(
                 }}
                 
                 .metric-value {{ 
-                    font-size: 24px;
+                    font-size: 16px;
                     font-weight: bold;
                     color: #58a6ff;
                 }}
@@ -228,26 +228,26 @@ def generate_html_body(
                 .indicator-row {{ 
                     display: grid;
                     grid-template-columns: repeat(2, 1fr);
-                    gap: 15px;
-                    margin-bottom: 15px;
+                    gap: 8px;
+                    margin-bottom: 8px;
                 }}
                 
                 .indicator-item {{ 
-                    padding: 10px;
+                    padding: 6px;
                     background: #21262d;
                     border-radius: 4px;
                     border: 1px solid #30363d;
                 }}
                 
                 .indicator-label {{ 
-                    font-size: 12px;
+                    font-size: 10px;
                     color: #8b949e;
                     font-weight: 600;
                     margin-bottom: 5px;
                 }}
                 
                 .indicator-value {{ 
-                    font-size: 18px;
+                    font-size: 14px;
                     font-weight: bold;
                     color: #c9d1d9;
                 }}
@@ -255,13 +255,13 @@ def generate_html_body(
                 .rr-section {{ 
                     display: grid;
                     grid-template-columns: 1fr 1fr;
-                    gap: 15px;
-                    margin-bottom: 20px;
+                    gap: 10px;
+                    margin-bottom: 12px;
                 }}
                 
                 .rr-box {{ 
                     border-radius: 6px;
-                    padding: 20px;
+                    padding: 12px;
                     color: white;
                     text-align: center;
                 }}
@@ -277,7 +277,7 @@ def generate_html_body(
                 }}
                 
                 .rr-value {{ 
-                    font-size: 28px;
+                    font-size: 18px;
                     font-weight: bold;
                 }}
                 
@@ -323,12 +323,12 @@ def generate_html_body(
                 .fib-grid {{ 
                     display: grid;
                     grid-template-columns: repeat(4, 1fr);
-                    gap: 10px;
+                    gap: 6px;
                 }}
                 
                 .fib-item {{ 
                     background: #21262d;
-                    padding: 10px;
+                    padding: 6px;
                     border-radius: 4px;
                     text-align: center;
                     border: 1px solid #30363d;
@@ -341,7 +341,7 @@ def generate_html_body(
                 }}
                 
                 .fib-value {{ 
-                    font-size: 16px;
+                    font-size: 13px;
                     font-weight: bold;
                     color: #58a6ff;
                 }}
@@ -388,6 +388,9 @@ def generate_html_body(
                     color: #f85149;
                     font-weight: 600;
                 }}
+                
+                details[open] > summary span:first-child {{ transform: rotate(90deg); }}
+                details summary::-webkit-details-marker {{ display: none; }}
             </style>
         </head>
         <body>
@@ -481,16 +484,16 @@ def generate_html_body(
                     <div class="section">
                         <div class="section-title">🇺🇸 ABD Makro Risk</div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
-                            <div style="background:#21262d; border-radius:8px; padding:20px; border:1px solid #30363d;">
+                            <div style="background:#21262d; border-radius:8px; padding:12px; border:1px solid #30363d;">
                                 <div style="font-size:12px; color:#8b949e; text-transform:uppercase; margin-bottom:8px;">ABD Ulusal Borcu</div>
-                                <div style="font-size:28px; font-weight:bold; color:#f85149;">${debt_trillion}T</div>
+                                <div style="font-size:18px; font-weight:bold; color:#f85149;">${debt_trillion}T</div>
                                 <div style="font-size:13px; color:#8b949e; margin-top:5px;">GDP'nin %{gdp_ratio}'ı</div>
                                 <div style="margin-top:8px; padding:4px 10px; background:{risk_color}22; color:{risk_color}; border-radius:12px; display:inline-block; font-size:12px; font-weight:bold;">Risk: {debt_risk}</div>
                                 <div style="font-size:12px; color:#8b949e; margin-top:8px;">{debt_comment}</div>
                             </div>
-                            <div style="background:#21262d; border-radius:8px; padding:20px; border:1px solid #30363d;">
+                            <div style="background:#21262d; border-radius:8px; padding:12px; border:1px solid #30363d;">
                                 <div style="font-size:12px; color:#8b949e; text-transform:uppercase; margin-bottom:8px;">DXY Dolar Endeksi</div>
-                                <div style="font-size:28px; font-weight:bold; color:#58a6ff;">{dxy_current}</div>
+                                <div style="font-size:18px; font-weight:bold; color:#58a6ff;">{dxy_current}</div>
                                 <div style="font-size:13px; color:{'#56d364' if dxy_change >= 0 else '#f85149'}; margin-top:5px;">Aylık: {dxy_change:+.2f}%</div>
                                 <div style="font-size:13px; color:#8b949e; margin-top:5px;">Trend: {dxy_trend}</div>
                                 <div style="font-size:12px; color:#8b949e; margin-top:8px;">{dxy_interp}</div>
@@ -515,9 +518,9 @@ def generate_html_body(
                     <!-- 🌐 JEOPOLİTİK RİSK -->
                     <div class="section">
                         <div class="section-title">🌐 Jeopolitik Risk Barometresi</div>
-                        <div style="background:#21262d; border-radius:8px; padding:20px; border:1px solid #30363d;">
-                            <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
-                                <div style="font-size:40px; font-weight:bold; color:{geo_color};">{geo_level}</div>
+                        <div style="background:#21262d; border-radius:8px; padding:12px; border:1px solid #30363d;">
+                            <div style="display:flex; align-items:center; gap:10px; margin-bottom:15px;">
+                                <div style="font-size:24px; font-weight:bold; color:{geo_color};">{geo_level}</div>
                             </div>
                             <div style="font-size:13px; color:#c9d1d9; margin-bottom:8px;"><strong style="color:#8b949e;">Tespit Edilen Riskler:</strong> {geo_risks_html}</div>
                             <div style="font-size:13px; color:#c9d1d9;"><strong style="color:#8b949e;">Etkilenen Sektörler:</strong> {geo_sectors_html}</div>
@@ -534,7 +537,7 @@ def generate_html_body(
                     <!-- 🌍 KÜRESEL FIRSAT RADARI -->
                     <div class="section">
                         <div class="section-title">🌍 Küresel Fırsat Radarı</div>
-                        <div style="background:#21262d; border-radius:8px; padding:20px; border:1px solid #30363d;">
+                        <div style="background:#21262d; border-radius:8px; padding:12px; border:1px solid #30363d;">
                 """
                 for item in supply_demand[:6]:
                     kw = item.get("keyword", "")
@@ -577,9 +580,9 @@ def generate_html_body(
                     c_color = "#56d364" if c_change >= 0 else "#f85149"
                     record_badge = '<div style="color:#ffd700; font-size:11px; font-weight:bold;">🏆 52H REKOR</div>' if is_record else ""
                     html += f"""
-                            <div style="background:#21262d; border-radius:8px; padding:15px; border:1px solid #30363d; text-align:center;">
+                            <div style="background:#21262d; border-radius:8px; padding:10px; border:1px solid #30363d; text-align:center;">
                                 <div style="font-size:11px; color:#8b949e; text-transform:uppercase; margin-bottom:5px;">{c_name}</div>
-                                <div style="font-size:16px; font-weight:bold; color:#e6edf3;">${c_price:.2f}</div>
+                                <div style="font-size:13px; font-weight:bold; color:#e6edf3;">${c_price:.2f}</div>
                                 <div style="font-size:13px; color:{c_color};">{c_change:+.2f}%</div>
                                 <div style="font-size:11px; color:#8b949e; margin-top:4px;">RSI: {c_rsi:.0f} | {c_trend}</div>
                                 {record_badge}
@@ -605,7 +608,7 @@ def generate_html_body(
                         affected = ", ".join(ctx.get("affected_sectors", []))
                         dist = c.get("record_info", {}).get("distance_pct", 0)
                         html += f"""
-                        <div style="background:#1a1f00; border:1px solid #ffd70066; border-radius:8px; padding:20px; margin-bottom:15px;">
+                        <div style="background:#1a1f00; border:1px solid #ffd70066; border-radius:8px; padding:12px; margin-bottom:15px;">
                             <div style="font-size:18px; font-weight:bold; color:#ffd700; margin-bottom:10px;">🏆 {c['name']} yeni rekor! ({dist:+.2f}%)</div>
                             <div style="font-size:13px; color:#c9d1d9; margin-bottom:8px;"><strong style="color:#ffd700;">Anlam:</strong> {rec_meaning}</div>
                             <div style="font-size:13px; color:#c9d1d9; margin-bottom:8px;"><strong style="color:#ffd700;">Tarihi Etki:</strong> {hist_impact}</div>
@@ -672,92 +675,100 @@ def generate_html_body(
         
         html += f"""
                     <!-- SKOR & RATING REHBERİ -->
-                    <div class="section">
-                        <div class="section-title">📖 Skor &amp; Rating Rehberi</div>
+                    <details style="margin-bottom:18px;">
+                        <summary style="cursor:pointer; font-size:16px; font-weight:bold; color:#e6edf3; padding:10px 0; border-bottom:2px solid #58a6ff; list-style:none; display:flex; align-items:center; gap:8px;">
+                            <span style="transition:transform 0.2s; display:inline-block;">▶</span> 📖 Skor &amp; Rating Rehberi
+                        </summary>
+                        <div style="padding-top:12px;">
                         <table style="width:100%; border-collapse: collapse; background: #21262d; border-radius: 8px; overflow: hidden;">
                             <thead>
                                 <tr style="background: #30363d;">
-                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Skor</th>
-                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Rating</th>
-                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Anlamı</th>
+                                    <th style="padding: 8px 10px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Skor</th>
+                                    <th style="padding: 8px 10px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Rating</th>
+                                    <th style="padding: 8px 10px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Anlamı</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold;">≥ 80</td>
-                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🔥 GÜÇLÜ AL</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumlu, güçlü alım fırsatı</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold;">≥ 80</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🔥 GÜÇLÜ AL</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumlu, güçlü alım fırsatı</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 10px 15px; color: #56d364; font-weight: bold;">≥ 70</td>
-                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🟢 AL</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Göstergeler olumlu, alım yapılabilir</td>
+                                    <td style="padding: 6px 10px; color: #56d364; font-weight: bold;">≥ 70</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟢 AL</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Göstergeler olumlu, alım yapılabilir</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #d29922; font-weight: bold;">≥ 60</td>
-                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🟡 TUT</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Mevcut pozisyonu koru, ne al ne sat</td>
+                                    <td style="padding: 6px 10px; color: #d29922; font-weight: bold;">≥ 60</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟡 TUT</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Mevcut pozisyonu koru, ne al ne sat</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 10px 15px; color: #d29922; font-weight: bold;">≥ 40</td>
-                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🟠 AZALT</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Göstergeler olumsuz, pozisyonu kademeli azalt</td>
+                                    <td style="padding: 6px 10px; color: #d29922; font-weight: bold;">≥ 40</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟠 AZALT</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Göstergeler olumsuz, pozisyonu kademeli azalt</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #f85149; font-weight: bold;">&lt; 40</td>
-                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🔴 SAT</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumsuz, sat</td>
+                                    <td style="padding: 6px 10px; color: #f85149; font-weight: bold;">&lt; 40</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🔴 SAT</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumsuz, sat</td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
+                        </div>
+                    </details>
                     
                     <!-- TEKNİK GÖSTERGE REHBERİ -->
-                    <div class="section">
-                        <div class="section-title">🔬 Teknik Gösterge Rehberi</div>
+                    <details style="margin-bottom:18px;">
+                        <summary style="cursor:pointer; font-size:16px; font-weight:bold; color:#e6edf3; padding:10px 0; border-bottom:2px solid #58a6ff; list-style:none; display:flex; align-items:center; gap:8px;">
+                            <span style="transition:transform 0.2s; display:inline-block;">▶</span> 🔬 Teknik Gösterge Rehberi
+                        </summary>
+                        <div style="padding-top:12px;">
                         <table style="width:100%; border-collapse: collapse; background: #21262d; border-radius: 8px; overflow: hidden;">
                             <thead>
                                 <tr style="background: #30363d;">
-                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Gösterge</th>
-                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Açıklama</th>
+                                    <th style="padding: 8px 10px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Gösterge</th>
+                                    <th style="padding: 8px 10px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Açıklama</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">RSI ({config.RSI_PERIOD})</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">{config.RSI_OVERSOLD} altı aşırı satım (alım fırsatı), {config.RSI_OVERBOUGHT} üzeri aşırı alım (satış sinyali)</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">RSI ({config.RSI_PERIOD})</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">{config.RSI_OVERSOLD} altı aşırı satım (alım fırsatı), {config.RSI_OVERBOUGHT} üzeri aşırı alım (satış sinyali)</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">MACD Histogram</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Pozitif → yükseliş trendi güçleniyor, Negatif → düşüş trendi güçleniyor</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">MACD Histogram</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Pozitif → yükseliş trendi güçleniyor, Negatif → düşüş trendi güçleniyor</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">SMA {config.SMA_SHORT} / SMA {config.SMA_LONG}</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Kısa/uzun vadeli ortalama; fiyat üstündeyse yükseliş, altındaysa düşüş</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">SMA {config.SMA_SHORT} / SMA {config.SMA_LONG}</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Kısa/uzun vadeli ortalama; fiyat üstündeyse yükseliş, altındaysa düşüş</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Bollinger Bantları</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Alt banda yakınsa alım fırsatı, üst banda yakınsa satış sinyali</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Bollinger Bantları</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Alt banda yakınsa alım fırsatı, üst banda yakınsa satış sinyali</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Momentum ({config.MOMENTUM_PERIOD}g)</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Pozitif → yukarı ivme, negatif → aşağı ivme</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Momentum ({config.MOMENTUM_PERIOD}g)</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Pozitif → yukarı ivme, negatif → aşağı ivme</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">ATR</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Volatilite ölçüsü — yüksek ATR = yüksek risk ve hareket</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">ATR</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Volatilite ölçüsü — yüksek ATR = yüksek risk ve hareket</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Fibonacci ({config.FIBONACCI_LOOKBACK}g)</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">0.618 → güçlü destek, 0.236 → güçlü direnç noktası</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Fibonacci ({config.FIBONACCI_LOOKBACK}g)</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">0.618 → güçlü destek, 0.236 → güçlü direnç noktası</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Risk/Reward</td>
-                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Kazanç/risk oranı ≥ {config.MIN_REWARD_RISK} olmalı (swing trade filtresi)</td>
+                                    <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Risk/Reward</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Kazanç/risk oranı ≥ {config.MIN_REWARD_RISK} olmalı (swing trade filtresi)</td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
+                        </div>
+                    </details>
                     
                     <!-- ÖNERİLER BÖLÜMÜ -->
                     <div class="section">
@@ -865,20 +876,20 @@ def generate_html_body(
                         </div>
                         
                         <!-- HEDEF FİYAT / STOP-LOSS / VADE -->
-                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;">
-                            <div style="background:#1a4a1a; border:1px solid #56d36466; border-radius:8px; padding:15px; text-align:center;">
+                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:12px;">
+                            <div style="background:#1a4a1a; border:1px solid #56d36466; border-radius:8px; padding:10px; text-align:center;">
                                 <div style="font-size:11px; color:#56d364; text-transform:uppercase; margin-bottom:6px;">🎯 Hedef Fiyat</div>
-                                <div style="font-size:20px; font-weight:bold; color:#56d364;">{currency}{target_price:.2f}</div>
+                                <div style="font-size:14px; font-weight:bold; color:#56d364;">{currency}{target_price:.2f}</div>
                                 <div style="font-size:12px; color:#56d364; margin-top:4px;">+{expected_gain_pct:.1f}%</div>
                             </div>
-                            <div style="background:#3d0c0c; border:1px solid #f8514966; border-radius:8px; padding:15px; text-align:center;">
+                            <div style="background:#3d0c0c; border:1px solid #f8514966; border-radius:8px; padding:10px; text-align:center;">
                                 <div style="font-size:11px; color:#f85149; text-transform:uppercase; margin-bottom:6px;">🛑 Stop-Loss</div>
-                                <div style="font-size:20px; font-weight:bold; color:#f85149;">{currency}{stop_loss:.2f}</div>
+                                <div style="font-size:14px; font-weight:bold; color:#f85149;">{currency}{stop_loss:.2f}</div>
                                 <div style="font-size:12px; color:#f85149; margin-top:4px;">-{max_risk_pct:.1f}%</div>
                             </div>
-                            <div style="background:#162032; border:1px solid #58a6ff66; border-radius:8px; padding:15px; text-align:center;">
+                            <div style="background:#162032; border:1px solid #58a6ff66; border-radius:8px; padding:10px; text-align:center;">
                                 <div style="font-size:11px; color:#58a6ff; text-transform:uppercase; margin-bottom:6px;">⚖️ R/R Oranı</div>
-                                <div style="font-size:20px; font-weight:bold; color:#58a6ff;">{rr_ratio:.2f}x</div>
+                                <div style="font-size:14px; font-weight:bold; color:#58a6ff;">{rr_ratio:.2f}x</div>
                                 <div style="font-size:12px; color:#8b949e; margin-top:4px;">📅 {timeframe}</div>
                             </div>
                         </div>
@@ -1030,7 +1041,7 @@ def generate_html_body(
             html += """
                     <div class="section">
                         <div class="section-title">📅 Tatil &amp; Volatilite Uyarısı</div>
-                        <div style="background:#21262d; border-radius:8px; padding:20px; border:1px solid #30363d;">
+                        <div style="background:#21262d; border-radius:8px; padding:12px; border:1px solid #30363d;">
             """
             for h in holiday_alerts[:6]:
                 impact_color = {"high": "#f85149", "medium": "#d29922", "low": "#56d364"}.get(h.get("impact", "low"), "#8b949e")
@@ -1062,13 +1073,17 @@ def generate_html_body(
                     </div>
                     
                     <!-- SKOR HESAPLAMA BİLGİ KUTUSU -->
-                    <div style="background:#161b22; border:1px solid #30363d; border-radius:8px; padding:20px; margin-bottom:20px; font-size:12px; color:#8b949e;">
-                        <div style="font-weight:bold; color:#58a6ff; margin-bottom:10px;">ℹ️ Skor Nasıl Hesaplanır?</div>
-                        <div>• %60 Teknik Analiz (RSI, MACD, SMA, Bollinger, Momentum)</div>
-                        <div>• %40 Haber Sentiment (Sektör bazlı duygu analizi)</div>
-                        <div style="margin-top:8px;">• Filtreler: Trend ↑ | Momentum &gt; 0 | R/R &gt; {config.MIN_REWARD_RISK} | Skor ≥ {config.MIN_BUY_SCORE}</div>
-                        <div style="margin-top:4px;">• Parametreler: RSI-{config.RSI_PERIOD} | SMA {config.SMA_SHORT}/{config.SMA_LONG} | Momentum-{config.MOMENTUM_PERIOD}g | Lookback-{config.LOOKBACK_DAYS}g</div>
-                    </div>
+                    <details style="margin-bottom:18px;">
+                        <summary style="cursor:pointer; font-size:16px; font-weight:bold; color:#e6edf3; padding:10px 0; border-bottom:2px solid #58a6ff; list-style:none; display:flex; align-items:center; gap:8px;">
+                            <span style="transition:transform 0.2s; display:inline-block;">▶</span> ℹ️ Skor Nasıl Hesaplanır?
+                        </summary>
+                        <div style="margin-top:12px; background:#161b22; border:1px solid #30363d; border-radius:8px; padding:12px; font-size:12px; color:#8b949e;">
+                            <div>• %60 Teknik Analiz (RSI, MACD, SMA, Bollinger, Momentum)</div>
+                            <div>• %40 Haber Sentiment (Sektör bazlı duygu analizi)</div>
+                            <div style="margin-top:8px;">• Filtreler: Trend ↑ | Momentum &gt; 0 | R/R &gt; {config.MIN_REWARD_RISK} | Skor ≥ {config.MIN_BUY_SCORE}</div>
+                            <div style="margin-top:4px;">• Parametreler: RSI-{config.RSI_PERIOD} | SMA {config.SMA_SHORT}/{config.SMA_LONG} | Momentum-{config.MOMENTUM_PERIOD}g | Lookback-{config.LOOKBACK_DAYS}g</div>
+                        </div>
+                    </details>
                     
                     <!-- FOOTER -->
                 </div>
