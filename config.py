@@ -1,5 +1,5 @@
 # ============================================================
-# config.py — Konfigürasyon Dosyası (v4 - KOMPLE FINAL)
+# config.py — Konfigürasyon Dosyası (v5 - SWING TRADE UPDATE)
 # ============================================================
 # Tüm ayarlar burada (API anahtarları, parametreler, hisseler)
 # ============================================================
@@ -46,12 +46,12 @@ VERBOSE = True
 # ═══════════════════════════════════════════════════════════
 
 # Veri alınacak dönem (gün cinsinden)
-LOOKBACK_DAYS = 200
+LOOKBACK_DAYS = 250
 
 # RSI parametreleri
-RSI_PERIOD = 14
-RSI_OVERSOLD = 30
-RSI_OVERBOUGHT = 70
+RSI_PERIOD = 21
+RSI_OVERSOLD = 35
+RSI_OVERBOUGHT = 65
 
 # MACD parametreleri
 MACD_FAST = 12
@@ -59,23 +59,29 @@ MACD_SLOW = 26
 MACD_SIGNAL = 9
 
 # Bollinger Bands parametreleri
-BOLLINGER_PERIOD = 20
+BOLLINGER_PERIOD = 21
 BOLLINGER_STD_DEV = 2.0
 
-# SMA parametreleri
-SMA_SHORT = 20
-SMA_LONG = 50
+# SMA parametreleri (1 aylık = 21 iş günü, 3 aylık = 63 iş günü)
+SMA_SHORT = 21
+SMA_LONG = 63
 
 # Fibonacci seviyeleri
 FIBONACCI_LEVELS = [0.236, 0.382, 0.5, 0.618, 0.786]
-FIBONACCI_LOOKBACK = 60
+FIBONACCI_LOOKBACK = 90
+
+# Momentum parametresi (1 aylık)
+MOMENTUM_PERIOD = 21
+
+# Minimum Reward/Risk oranı
+MIN_REWARD_RISK = 1.2
 
 # ═══════════════════════════════════════════════════════════
 # SKOR AYARLARI
 # ═══════════════════════════════════════════════════════════
 
 # Minimum alım sinyali skoru (0-100)
-MIN_BUY_SCORE = 65
+MIN_BUY_SCORE = 68
 
 # Maksimum satış sinyali skoru (0-100)
 MAX_SELL_SCORE = 35
@@ -83,6 +89,9 @@ MAX_SELL_SCORE = 35
 # Nötr aralığı
 NEUTRAL_SCORE_MIN = 45
 NEUTRAL_SCORE_MAX = 55
+
+# Maksimum öneri sayısı
+MAX_RECOMMENDATIONS = 3
 
 # ═══════════════════════════════════════════════════════════
 # HİSSE LİSTESİ (BIST & GLOBAL)
@@ -151,6 +160,131 @@ GLOBAL_STOCKS = [
 
 # Tüm Hisseler
 ALL_STOCKS = BIST_STOCKS + GLOBAL_STOCKS
+
+# ═══════════════════════════════════════════════════════════
+# EMTİA LİSTESİ
+# ═══════════════════════════════════════════════════════════
+
+COMMODITIES = {
+    "Altın": "GC=F",
+    "Gümüş": "SI=F",
+    "Bakır": "HG=F",
+    "Ham Petrol (WTI)": "CL=F",
+    "Brent Petrol": "BZ=F",
+    "Doğalgaz": "NG=F",
+    "Platin": "PL=F",
+    "Paladyum": "PA=F",
+}
+
+# ═══════════════════════════════════════════════════════════
+# BORSA TATİL TAKVİMİ 2026
+# ═══════════════════════════════════════════════════════════
+
+MARKET_HOLIDAYS_2026 = {
+    "SSE Shanghai": [
+        {"name": "Çin Yeni Yılı", "start": "2026-02-16", "end": "2026-02-23", "impact": "high"},
+        {"name": "İşçi Bayramı", "start": "2026-05-01", "end": "2026-05-05", "impact": "medium"},
+        {"name": "Ulusal Gün", "start": "2026-10-01", "end": "2026-10-07", "impact": "high"},
+    ],
+    "HKEX Hong Kong": [
+        {"name": "Ay Yeni Yılı", "start": "2026-02-17", "end": "2026-02-19", "impact": "high"},
+        {"name": "Paskalya", "start": "2026-04-03", "end": "2026-04-07", "impact": "medium"},
+    ],
+    "TSE Tokyo": [
+        {"name": "Yeni Yıl", "start": "2026-01-01", "end": "2026-01-05", "impact": "medium"},
+        {"name": "Altın Hafta", "start": "2026-04-29", "end": "2026-05-06", "impact": "high"},
+    ],
+    "NYSE/NASDAQ": [
+        {"name": "Memorial Day", "start": "2026-05-25", "end": "2026-05-25", "impact": "low"},
+        {"name": "Bağımsızlık Günü", "start": "2026-07-03", "end": "2026-07-03", "impact": "low"},
+        {"name": "Thanksgiving", "start": "2026-11-26", "end": "2026-11-27", "impact": "medium"},
+    ],
+}
+
+# ═══════════════════════════════════════════════════════════
+# JEOPOLİTİK ANAHTAR KELİMELER
+# ═══════════════════════════════════════════════════════════
+
+GEOPOLITICAL_KEYWORDS = [
+    "war", "conflict", "sanctions", "tariff", "trade war",
+    "NATO", "military", "invasion", "nuclear", "embargo",
+    "coup", "protest", "crisis", "tension", "missile",
+]
+
+SUPPLY_DEMAND_KEYWORDS = {
+    "shortage": {"impact": "bullish", "sectors": ["teknoloji", "enerji"]},
+    "supply chain": {"impact": "mixed", "sectors": ["otomotiv", "teknoloji"]},
+    "record demand": {"impact": "bullish", "sectors": ["enerji", "teknoloji"]},
+    "surplus": {"impact": "bearish", "sectors": ["enerji"]},
+    "chip shortage": {"impact": "bullish", "sectors": ["teknoloji"]},
+    "oil crisis": {"impact": "bullish", "sectors": ["enerji"]},
+    "ram shortage": {"impact": "bullish", "sectors": ["teknoloji"]},
+    "ev demand": {"impact": "bullish", "sectors": ["otomotiv"]},
+    "gold record": {"impact": "bullish", "sectors": ["madencilik"]},
+}
+
+# ═══════════════════════════════════════════════════════════
+# EMTİA REKOR BAĞLAM BİLGİ BANKASI
+# ═══════════════════════════════════════════════════════════
+
+COMMODITY_RECORD_CONTEXT = {
+    "GC=F": {
+        "name": "Altın",
+        "record_meaning": "Riskten kaçış, enflasyon korkusu, merkez bankası alımları",
+        "affected_sectors": ["madencilik", "finans"],
+        "historical_impact": "Altın rekor kırdığında genelde hisse piyasaları baskı altına girer, güvenli liman talebi artar",
+    },
+    "SI=F": {
+        "name": "Gümüş",
+        "record_meaning": "Sanayi talebi + yatırım talebi, solar panel üretimi artışı",
+        "affected_sectors": ["teknoloji", "enerji", "madencilik"],
+        "historical_impact": "Gümüş rekoru sanayi canlanmasının ve yeşil enerji yatırımlarının habercisi olabilir",
+    },
+    "HG=F": {
+        "name": "Bakır",
+        "record_meaning": "Küresel ekonomik canlanma, inşaat ve altyapı yatırımları",
+        "affected_sectors": ["inşaat_gayrimenkul", "enerji", "madencilik"],
+        "historical_impact": "Bakır 'Dr. Copper' olarak bilinir — ekonominin sağlık göstergesi, rekor küresel büyüme sinyali",
+    },
+    "CL=F": {
+        "name": "Ham Petrol",
+        "record_meaning": "Arz kısıntısı, jeopolitik gerilim, talep artışı",
+        "affected_sectors": ["enerji", "ulaştırma"],
+        "historical_impact": "Petrol rekoru enflasyonu tetikler, merkez bankalarını faiz artışına zorlar, tüketici harcamalarını kısar",
+    },
+    "BZ=F": {
+        "name": "Brent Petrol",
+        "record_meaning": "Global enerji arz-talep dengesi bozulması",
+        "affected_sectors": ["enerji", "ulaştırma"],
+        "historical_impact": "Brent rekoru Avrupa ve Asya piyasalarını daha fazla etkiler",
+    },
+    "NG=F": {
+        "name": "Doğalgaz",
+        "record_meaning": "Kış talebi, LNG ihracat artışı, arz kesintisi",
+        "affected_sectors": ["enerji"],
+        "historical_impact": "Doğalgaz rekoru enerji maliyetlerini artırır, sanayi üretimini baskılar",
+    },
+    "PL=F": {
+        "name": "Platin",
+        "record_meaning": "Otomotiv katalitik konvertör talebi, hidrojen ekonomisi",
+        "affected_sectors": ["otomotiv", "madencilik"],
+        "historical_impact": "Platin rekoru otomotiv sektörü canlanması ve yeşil enerji dönüşümüne işaret eder",
+    },
+    "PA=F": {
+        "name": "Paladyum",
+        "record_meaning": "Otomotiv talebi, Rusya arz riski",
+        "affected_sectors": ["otomotiv", "madencilik"],
+        "historical_impact": "Paladyum rekoru genelde Rusya-Batı gerilimi dönemlerinde görülür",
+    },
+}
+
+# ═══════════════════════════════════════════════════════════
+# DXY (DOLAR ENDEKSİ) VE ABD BORÇ
+# ═══════════════════════════════════════════════════════════
+
+DXY_TICKER = "DX-Y.NYB"
+US_DEBT_TRILLION = 38.8  # Manuel güncelleme veya API ile
+US_DEBT_GDP_RATIO = 124  # %
 
 # ═══════════════════════════════════════════════════════════
 # SEKTÖR AYARLARI
@@ -371,9 +505,15 @@ if __name__ == "__main__":
     
     print(f"\n📈 Teknik analiz ayarları:")
     print(f"  - Lookback: {LOOKBACK_DAYS} gün")
-    print(f"  - RSI: {RSI_PERIOD}")
+    print(f"  - RSI: {RSI_PERIOD} (oversold:{RSI_OVERSOLD}, overbought:{RSI_OVERBOUGHT})")
     print(f"  - MACD: {MACD_FAST}/{MACD_SLOW}/{MACD_SIGNAL}")
     print(f"  - Bollinger: {BOLLINGER_PERIOD}/{BOLLINGER_STD_DEV}")
+    print(f"  - SMA: {SMA_SHORT}/{SMA_LONG}")
+    print(f"  - Momentum: {MOMENTUM_PERIOD} gün")
+    print(f"  - Min Buy Score: {MIN_BUY_SCORE}")
+    print(f"  - Min R/R: {MIN_REWARD_RISK}")
+    print(f"  - Max Öneriler: {MAX_RECOMMENDATIONS}")
+    print(f"  - Emtia sayısı: {len(COMMODITIES)}")
     
     print(f"\n📧 Email ayarları:")
     print(f"  - Gönderici: {MAIL_SENDER}")

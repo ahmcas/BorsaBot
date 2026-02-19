@@ -1,5 +1,5 @@
 # ============================================================
-# scorer.py — Skor & Seçim (v5 - KOMPLE FINAL)
+# scorer.py — Skor & Seçim (v6 - SWING TRADE UPDATE)
 # ============================================================
 
 import config
@@ -66,8 +66,11 @@ class ScoreCalculator:
             return {"reward_pct": 0, "risk_pct": 0, "ratio": 0}
 
 
-def select_top_stocks(technical_results: list, sector_scores: dict, max_count: int = 5) -> list:
-    """En İyi Hisseleri Seç"""
+def select_top_stocks(technical_results: list, sector_scores: dict, max_count: int = None) -> list:
+    """En İyi Hisseleri Seç — Swing Trade Filtreleri"""
+    
+    if max_count is None:
+        max_count = config.MAX_RECOMMENDATIONS
     
     try:
         candidates = []
@@ -121,7 +124,9 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
                 "resistance": resistance,
                 "reward_pct": rr["reward_pct"],
                 "risk_pct": rr["risk_pct"],
+                "reward_risk_ratio": rr["ratio"],
                 "confidence": ScoreCalculator.calculate_confidence(composite_score),
+                "breakout": result.get("breakout", {}),
                 "dataframe": result.get("dataframe"),
                 "sector": config.STOCK_SECTORS.get(ticker, "Teknoloji" if "." not in ticker else "Finans")
             }
@@ -131,12 +136,30 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         if not candidates:
             return []
         
-        candidates.sort(key=lambda x: x["score"], reverse=True)
-        selected = candidates[:max_count]
+        # Swing Trade Filtreleri
+        filtered = []
+        for c in candidates:
+            # 1. Trend filtresi
+            if c["trend"] not in ("Yükseliş", "Güçlü Yükseliş"):
+                continue
+            # 2. Momentum filtresi
+            if (c.get("momentum_pct") or 0) <= 0:
+                continue
+            # 3. Reward/Risk filtresi
+            if c["reward_risk_ratio"] < config.MIN_REWARD_RISK:
+                continue
+            # 4. Skor filtresi
+            if c["score"] < config.MIN_BUY_SCORE:
+                continue
+            filtered.append(c)
         
-        print(f"✅ {len(selected)} hisse seçildi:")
+        # Composite sıralama: R/R × Skor
+        filtered.sort(key=lambda x: x["reward_risk_ratio"] * x["score"], reverse=True)
+        selected = filtered[:max_count]
+        
+        print(f"✅ {len(selected)} hisse seçildi (filtreden geçen: {len(filtered)}/{len(candidates)}):")
         for i, stock in enumerate(selected, 1):
-            print(f"   {i}. {stock['ticker']:10s} - Skor: {stock['score']:6.1f}")
+            print(f"   {i}. {stock['ticker']:10s} - Skor: {stock['score']:6.1f} | R/R: {stock['reward_risk_ratio']:.2f}")
         
         return selected
     
@@ -145,19 +168,27 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         return []
 
 
-def generate_recommendation_text(selected_stocks: list, sector_scores: dict) -> dict:
+def generate_recommendation_text(selected_stocks: list, sector_scores: dict, candidates: list = None) -> dict:
     """Öneriler Oluştur"""
     
     try:
         recommendations = {"recommendations": [], "total_selected": len(selected_stocks)}
         
         for stock in selected_stocks:
+            current_price = stock.get("current_price", 0)
+            resistance = stock.get("resistance", 0)
+            support = stock.get("support", 0)
+            rr_ratio = stock.get("reward_risk_ratio", 0)
+            
+            expected_gain_pct = round(((resistance - current_price) / current_price) * 100, 2) if current_price else 0
+            max_risk_pct = round(((current_price - support) / current_price) * 100, 2) if current_price else 0
+            
             rec = {
                 "ticker": stock.get("ticker"),
                 "sector": stock.get("sector", "Genel"),
                 "score": stock.get("score", 0),
                 "rating": determine_rating(stock.get("score", 0)),
-                "price": stock.get("current_price", 0),
+                "price": current_price,
                 "rsi": stock.get("rsi"),
                 "macd_histogram": stock.get("macd_histogram"),
                 "macd_line": stock.get("macd_line"),
@@ -172,15 +203,48 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict) -> 
                 "atr": stock.get("atr"),
                 "trend": stock.get("trend", "Nötr"),
                 "trend_strength": stock.get("trend_strength"),
-                "support": stock.get("support", 0),
-                "resistance": stock.get("resistance", 0),
+                "support": support,
+                "resistance": resistance,
                 "reward_pct": stock.get("reward_pct", 0),
                 "risk_pct": stock.get("risk_pct", 0),
                 "confidence": stock.get("confidence", "Orta"),
                 "signals": stock.get("signals", []),
-                "fibonacci": stock.get("fibonacci", {})
+                "fibonacci": stock.get("fibonacci", {}),
+                # Yeni alanlar
+                "target_price": resistance,
+                "stop_loss": support,
+                "expected_gain_pct": expected_gain_pct,
+                "max_risk_pct": max_risk_pct,
+                "reward_risk_ratio": round(rr_ratio, 2),
+                "timeframe": "~1 Ay (21 İş Günü)",
+                "breakout": stock.get("breakout", {}),
             }
             recommendations["recommendations"].append(rec)
+        
+        # Market summary
+        all_cands = candidates if candidates is not None else selected_stocks
+        total_analyzed = len(all_cands)
+        avg_score = sum(c.get("score", 0) for c in all_cands) / total_analyzed if total_analyzed else 0
+        avg_rsi = sum(c.get("rsi") or 50 for c in all_cands) / total_analyzed if total_analyzed else 50
+        avg_momentum = sum(c.get("momentum_pct") or 0 for c in all_cands) / total_analyzed if total_analyzed else 0
+        avg_rr = sum(c.get("reward_risk_ratio") or 0 for c in all_cands) / total_analyzed if total_analyzed else 0
+        
+        hist_count = sum(1 for c in all_cands if c.get("source") == "historical")
+        rt_count = sum(1 for c in all_cands if c.get("source") == "realtime_smart")
+        fb_count = total_analyzed - hist_count - rt_count
+        
+        recommendations["market_summary"] = {
+            "avg_score": round(avg_score, 1),
+            "total_analyzed": total_analyzed,
+            "total_passed_filter": len(selected_stocks),
+            "bullish_count": sum(1 for c in all_cands if c.get("trend") in ("Yükseliş", "Güçlü Yükseliş")),
+            "bearish_count": sum(1 for c in all_cands if c.get("trend") in ("Düşüş", "Güçlü Düşüş")),
+            "neutral_count": sum(1 for c in all_cands if c.get("trend") == "Nötr"),
+            "avg_rsi": round(avg_rsi, 1),
+            "avg_momentum": round(avg_momentum, 2),
+            "avg_reward_risk": round(avg_rr, 2),
+            "source_breakdown": {"historical": hist_count, "realtime": rt_count, "fallback": fb_count},
+        }
         
         return recommendations
     

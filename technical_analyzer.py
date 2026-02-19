@@ -1,7 +1,7 @@
 # ============================================================
-# technical_analyzer.py — Teknik Analiz Engine (v7 - ULTRA FINAL)
+# technical_analyzer.py — Teknik Analiz Engine (v8 - SWING TRADE UPDATE)
 # ============================================================
-# KOMPLE & AKILLI - Her hisse analiz edilir, hiçbir fallback yok
+# 1 Aylık Swing Trade Stratejisi - Her hisse analiz edilir
 # ============================================================
 
 import pandas as pd
@@ -24,9 +24,11 @@ class TechnicalAnalyzer:
     """Teknik Analiz - Komple & Akıllı"""
     
     @staticmethod
-    def get_stock_data(ticker: str, period: str = "200d") -> dict:
+    def get_stock_data(ticker: str, period: str = None) -> dict:
         """Hisse verisi al (SMART)"""
         try:
+            if period is None:
+                period = f"{config.LOOKBACK_DAYS}d"
             # 1. Tarihi veri çek
             df = yf.download(ticker, period=period, progress=False, timeout=30)
             
@@ -102,28 +104,31 @@ class TechnicalAnalyzer:
             low = df["low"]
             
             # TÜM GÖSTERGELERI HESAPLA
-            rsi = TechnicalAnalyzer.calculate_rsi(close)
+            rsi = TechnicalAnalyzer.calculate_rsi(close, period=config.RSI_PERIOD)
             macd = TechnicalAnalyzer.calculate_macd(close)
-            bollinger = TechnicalAnalyzer.calculate_bollinger_bands(close)
-            sma_20 = TechnicalAnalyzer.calculate_sma(close, 20)
-            sma_50 = TechnicalAnalyzer.calculate_sma(close, 50)
-            momentum = TechnicalAnalyzer.calculate_momentum(close)
+            bollinger = TechnicalAnalyzer.calculate_bollinger_bands(close, period=config.BOLLINGER_PERIOD)
+            sma_short = TechnicalAnalyzer.calculate_sma(close, config.SMA_SHORT)
+            sma_long = TechnicalAnalyzer.calculate_sma(close, config.SMA_LONG)
+            momentum = TechnicalAnalyzer.calculate_momentum(close, period=config.MOMENTUM_PERIOD)
             atr = TechnicalAnalyzer.calculate_atr(df)
-            fibonacci = TechnicalAnalyzer.calculate_fibonacci(df)
+            fibonacci = TechnicalAnalyzer.calculate_fibonacci(df, lookback=config.FIBONACCI_LOOKBACK)
             
             current_price = float(close.iloc[-1])
             
             # TREND
             trend = TechnicalAnalyzer.analyze_trend(df)
             
+            # BREAKOUT
+            breakout = TechnicalAnalyzer.detect_breakout(df, fibonacci, current_price)
+            
             # SİNYALLER
             signals = TechnicalAnalyzer.generate_signals(
-                rsi, macd, bollinger, sma_20, sma_50, momentum, current_price
+                rsi, macd, bollinger, sma_short, sma_long, momentum, current_price
             )
             
             # SKOR
             score = TechnicalAnalyzer.calculate_technical_score(
-                rsi, macd, bollinger, sma_20, sma_50, momentum, current_price
+                rsi, macd, bollinger, sma_short, sma_long, momentum, current_price
             )
             
             return {
@@ -140,14 +145,15 @@ class TechnicalAnalyzer:
                 "bollinger_upper": bollinger.get("upper_band"),
                 "bollinger_middle": bollinger.get("middle_band"),
                 "bollinger_lower": bollinger.get("lower_band"),
-                "sma_short": sma_20,
-                "sma_long": sma_50,
+                "sma_short": sma_short,
+                "sma_long": sma_long,
                 "momentum_pct": momentum,
                 "atr": atr,
                 "signals": signals,
                 "fibonacci": fibonacci,
                 "trend": trend.get("trend"),
                 "trend_strength": trend.get("strength"),
+                "breakout": breakout,
                 "dataframe": df
             }
         
@@ -294,9 +300,11 @@ class TechnicalAnalyzer:
             }
     
     @staticmethod
-    def calculate_rsi(prices: pd.Series, period: int = 14) -> float:
+    def calculate_rsi(prices: pd.Series, period: int = None) -> float:
         """RSI"""
         try:
+            if period is None:
+                period = config.RSI_PERIOD
             if prices is None or len(prices) < period + 1:
                 return 50.0
             
@@ -355,9 +363,11 @@ class TechnicalAnalyzer:
             return {"macd_line": 0, "signal_line": 0, "histogram": 0}
     
     @staticmethod
-    def calculate_bollinger_bands(prices: pd.Series, period: int = 20) -> dict:
+    def calculate_bollinger_bands(prices: pd.Series, period: int = None) -> dict:
         """Bollinger Bands"""
         try:
+            if period is None:
+                period = config.BOLLINGER_PERIOD
             if prices is None or len(prices) < period:
                 return {"upper_band": 0, "middle_band": 0, "lower_band": 0, "position": "orta"}
             
@@ -413,9 +423,11 @@ class TechnicalAnalyzer:
             return 0.0
     
     @staticmethod
-    def calculate_momentum(prices: pd.Series, period: int = 10) -> float:
+    def calculate_momentum(prices: pd.Series, period: int = None) -> float:
         """Momentum"""
         try:
+            if period is None:
+                period = config.MOMENTUM_PERIOD
             if prices is None or len(prices) < period:
                 return 0.0
             
@@ -461,9 +473,11 @@ class TechnicalAnalyzer:
             return 0.0
     
     @staticmethod
-    def calculate_fibonacci(df: pd.DataFrame, lookback: int = 60) -> dict:
+    def calculate_fibonacci(df: pd.DataFrame, lookback: int = None) -> dict:
         """Fibonacci"""
         try:
+            if lookback is None:
+                lookback = config.FIBONACCI_LOOKBACK
             if df is None or len(df) < lookback:
                 return {}
             
@@ -492,9 +506,9 @@ class TechnicalAnalyzer:
         signals = []
         
         try:
-            if rsi and rsi < 30:
+            if rsi and rsi < config.RSI_OVERSOLD:
                 signals.append(f"📊 RSI {rsi:.1f} → Oversold (Aşırı Satım - AL Fırsatı)")
-            elif rsi and rsi > 70:
+            elif rsi and rsi > config.RSI_OVERBOUGHT:
                 signals.append(f"📊 RSI {rsi:.1f} → Overbought (Aşırı Alım - SAT Sinyali)")
             
             if macd.get("histogram", 0) > 0:
@@ -526,54 +540,54 @@ class TechnicalAnalyzer:
     
     @staticmethod
     def calculate_technical_score(rsi, macd, bollinger, sma20, sma50, momentum, price) -> float:
-        """Skor Hesapla (0-100)"""
+        """Skor Hesapla (0-100) — 1 aylık swing trade ağırlıkları"""
         try:
             score = 50.0
             
-            # RSI
+            # RSI — swing trade'de erken giriş/çıkış noktaları
             if rsi:
-                if rsi < 30:
-                    score += 12
+                if rsi < config.RSI_OVERSOLD:  # 35
+                    score += 10
                 elif rsi < 40:
-                    score += 6
-                elif rsi > 70:
-                    score -= 12
+                    score += 5
+                elif rsi > config.RSI_OVERBOUGHT:  # 65
+                    score -= 10
                 elif rsi > 60:
-                    score -= 6
+                    score -= 5
             
-            # MACD
+            # MACD — trend doğrulama daha önemli
             if macd.get("histogram", 0) > 0:
-                score += 8
-            else:
-                score -= 8
-            
-            # Bollinger
-            if bollinger.get("position") == "alt":
                 score += 10
-            elif bollinger.get("position") == "üst":
+            else:
                 score -= 10
             
-            # SMA
+            # Bollinger — bant genişliği
+            if bollinger.get("position") == "alt":
+                score += 8
+            elif bollinger.get("position") == "üst":
+                score -= 8
+            
+            # SMA Alignment — trend yönü EN ÖNEMLİ faktör
             if sma20 and sma50 and price:
                 if price > sma20 > sma50:
-                    score += 15
+                    score += 18  # Güçlü yükseliş trendi
                 elif price < sma20 < sma50:
-                    score -= 15
+                    score -= 18
                 elif price > sma20:
-                    score += 8
+                    score += 10
                 elif price < sma20:
-                    score -= 8
+                    score -= 10
             
-            # Momentum
+            # Momentum — 1 aylık ivme çok kritik
             if momentum:
                 if momentum > 10:
-                    score += 12
+                    score += 14
                 elif momentum > 0:
-                    score += 6
+                    score += 7
                 elif momentum < -10:
-                    score -= 12
+                    score -= 14
                 elif momentum < 0:
-                    score -= 6
+                    score -= 7
             
             return round(max(0, min(100, score)), 1)
         
@@ -581,28 +595,61 @@ class TechnicalAnalyzer:
             return 50.0
     
     @staticmethod
+    def detect_breakout(df, fibonacci: dict, current_price: float) -> dict:
+        """Direnç kırılma tespiti"""
+        try:
+            resistance = fibonacci.get("fib_0.236", 0)
+            support = fibonacci.get("fib_0.618", 0)
+            
+            # Volume kontrolü
+            if df is not None and len(df) >= 20:
+                avg_volume = df["volume"].tail(20).mean()
+                last_volume = float(df["volume"].iloc[-1])
+                volume_surge = last_volume > avg_volume * 1.5
+            else:
+                volume_surge = False
+            
+            breakout_type = None
+            if resistance and current_price > resistance:
+                breakout_type = "resistance_break"
+            elif resistance and current_price > resistance * 0.98:
+                breakout_type = "near_resistance"
+            elif support and current_price < support * 1.02 and current_price > support:
+                breakout_type = "support_bounce"
+            
+            return {
+                "type": breakout_type,
+                "volume_surge": volume_surge,
+                "resistance": resistance,
+                "support": support,
+            }
+        
+        except:
+            return {"type": None, "volume_surge": False, "resistance": 0, "support": 0}
+    
+    @staticmethod
     def analyze_trend(df: pd.DataFrame) -> dict:
         """Trend Analizi"""
         try:
-            if df is None or len(df) < 50:
+            if df is None or len(df) < config.SMA_LONG:
                 return {"trend": "Nötr", "strength": "N/A"}
             
             close = df["close"].astype(float)
             
-            sma20 = close.rolling(window=20).mean()
-            sma50 = close.rolling(window=50).mean()
+            sma_s = close.rolling(window=config.SMA_SHORT).mean()
+            sma_l = close.rolling(window=config.SMA_LONG).mean()
             
             current = float(close.iloc[-1])
-            sma20_val = float(sma20.iloc[-1])
-            sma50_val = float(sma50.iloc[-1])
+            sma_s_val = float(sma_s.iloc[-1])
+            sma_l_val = float(sma_l.iloc[-1])
             
-            if current > sma20_val > sma50_val:
+            if current > sma_s_val > sma_l_val:
                 return {"trend": "Güçlü Yükseliş", "strength": "Very Strong"}
-            elif current > sma20_val:
+            elif current > sma_s_val:
                 return {"trend": "Yükseliş", "strength": "Strong"}
-            elif current < sma20_val < sma50_val:
+            elif current < sma_s_val < sma_l_val:
                 return {"trend": "Güçlü Düşüş", "strength": "Very Strong"}
-            elif current < sma20_val:
+            elif current < sma_s_val:
                 return {"trend": "Düşüş", "strength": "Strong"}
             else:
                 return {"trend": "Nötr", "strength": "Balanced"}
@@ -635,9 +682,10 @@ def analyze_all_stocks(ticker_list: list) -> list:
 
 
 if __name__ == "__main__":
-    print("🧪 Technical Analyzer Testi")
+    print("🧪 Technical Analyzer Testi (Swing Trade v8)")
     test_stocks = ["GARAN.IS", "AAPL", "MSFT"]
     results = analyze_all_stocks(test_stocks)
     for r in results:
         if not r.get("skip"):
-            print(f"{r['ticker']}: ${r['current_price']} | Score: {r['score']}")
+            breakout = r.get("breakout", {})
+            print(f"{r['ticker']}: ${r['current_price']} | Score: {r['score']} | Trend: {r.get('trend')} | Breakout: {breakout.get('type')}")
