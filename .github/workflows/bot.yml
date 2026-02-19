@@ -2,28 +2,32 @@ name: Borsa Bot Daily Analysis
 
 on:
   schedule:
-    - cron: '0 6 * * 1-5'  # UTC 06:00 = Türkiye 09:00
-  workflow_dispatch:
+    - cron: '0 6 * * 1-5'  # UTC 06:00 = Türkiye 09:00 (Pazartesi-Cuma)
+  workflow_dispatch:  # Manuel tetikle
 
 jobs:
   borsa-analysis:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
+      # 1. Kodu indir
       - name: Checkout code
         uses: actions/checkout@v3
       
+      # 2. Python 3.11 kur
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
       
+      # 3. Paketleri yükle
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      # 4. Analiz çalıştır (QUICK MODE)
       - name: Run Borsa Analysis (QUICK MODE)
         env:
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
@@ -33,6 +37,7 @@ jobs:
         run: |
           python main_bot.py once --quick
       
+      # 5. Tamamla
       - name: Mark job as complete
         if: always()
         run: echo "✅ Analiz tamamlandı"
