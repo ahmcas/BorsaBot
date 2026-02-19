@@ -8,6 +8,7 @@ on:
 jobs:
   borsa-analysis:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     
     steps:
       - name: Checkout code
@@ -32,11 +33,6 @@ jobs:
         run: |
           python main_bot.py once --quick
       
-      - name: Send Error Notification
-        if: failure()
-        uses: davisNG/simple-mail-action@master
-        with:
-          to: ${{ secrets.MAIL_RECIPIENT }}
-          from: ${{ secrets.MAIL_SENDER }}
-          subject: "❌ Borsa Bot Hatası!"
-          body: "Analiz çalıştırılırken hata oluştu."
+      - name: Mark job as complete
+        if: always()
+        run: echo "✅ Analiz tamamlandı"
