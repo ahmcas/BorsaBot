@@ -1,14 +1,14 @@
 # ============================================================
-# scorer.py — Skor Hesaplama ve Seçim (v3 - KOMPLE FINAL)
+# scorer.py — Skor Hesaplama ve Seçim (v4 - KOMPLE FINAL)
 # ============================================================
 # İşlevler:
 # 1. Teknik + Haber skorları birleştir
 # 2. En iyi hisseleri seç
-# 3. Öneriler üret
+# 3. Fallback mekanizması (hiç hisse seçilmemişse)
+# 4. Öneriler üret
 # ============================================================
 
 import config
-from datetime import datetime
 
 
 class ScoreCalculator:
@@ -32,6 +32,9 @@ class ScoreCalculator:
             # Teknik %60, Haber %40
             composite = (technical_score * 0.6) + (news_score * 0.4)
             
+            # Sınırla ve round
+            composite = max(0, min(100, composite))
+            
             return round(composite, 1)
         
         except Exception as e:
@@ -41,29 +44,35 @@ class ScoreCalculator:
     def calculate_confidence(score: float, rsi: float, macd_histogram: float) -> str:
         """Güven seviyesi belirle"""
         
-        # Sekor çok yüksek veya düşük
-        confidence_base = "Orta"
-        
-        if score > 80:
-            confidence_base = "Çok Yüksek"
-        elif score > 70:
-            confidence_base = "Yüksek"
-        elif score > 60:
-            confidence_base = "İyi"
-        elif score > 50:
+        try:
             confidence_base = "Orta"
-        elif score > 40:
-            confidence_base = "Düşük"
-        else:
-            confidence_base = "Çok Düşük"
+            
+            if score > 80:
+                confidence_base = "Çok Yüksek"
+            elif score > 70:
+                confidence_base = "Yüksek"
+            elif score > 60:
+                confidence_base = "İyi"
+            elif score > 50:
+                confidence_base = "Orta"
+            elif score > 40:
+                confidence_base = "Düşük"
+            else:
+                confidence_base = "Çok Düşük"
+            
+            return confidence_base
         
-        return confidence_base
+        except Exception as e:
+            return "Bilinmiyor"
     
     @staticmethod
     def calculate_reward_risk(current_price: float, support: float, resistance: float) -> dict:
         """Reward/Risk oranı hesapla"""
         try:
             if not current_price or not support or not resistance:
+                return {"reward_pct": 0, "risk_pct": 0, "ratio": 0}
+            
+            if current_price == 0:
                 return {"reward_pct": 0, "risk_pct": 0, "ratio": 0}
             
             reward = ((resistance - current_price) / current_price) * 100
@@ -82,7 +91,7 @@ class ScoreCalculator:
 
 
 def select_top_stocks(technical_results: list, sector_scores: dict, max_count: int = 5) -> list:
-    """En iyi hisseleri seç"""
+    """En iyi hisseleri seç (FALLBACK İLE)"""
     
     try:
         candidates = []
@@ -101,7 +110,7 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
                 # Türkçe hisse (BIST)
                 sector_sentiment = sector_scores.get("finans", 0.0)
             else:
-                # Global hisse - sektörü bul
+                # Global hisse
                 sector_sentiment = sector_scores.get("teknoloji", 0.0)
             
             # Composite skor
@@ -112,12 +121,19 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
             
             # Fibonacci seviyeleri
             fibonacci = result.get("fibonacci", {})
-            support = fibonacci.get("fib_0.618", result.get("current_price", 0) * 0.95)
-            resistance = fibonacci.get("fib_0.236", result.get("current_price", 0) * 1.05)
+            current_price = result.get("current_price", 0)
+            
+            # Support/Resistance
+            if fibonacci:
+                support = fibonacci.get("fib_0.618", current_price * 0.95)
+                resistance = fibonacci.get("fib_0.236", current_price * 1.05)
+            else:
+                support = current_price * 0.95 if current_price > 0 else 0
+                resistance = current_price * 1.05 if current_price > 0 else 0
             
             # Reward/Risk
             rr = ScoreCalculator.calculate_reward_risk(
-                result.get("current_price"),
+                current_price,
                 support,
                 resistance
             )
@@ -127,21 +143,21 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
                 "score": composite_score,
                 "technical_score": technical_score,
                 "sector_sentiment": sector_sentiment,
-                "current_price": result.get("current_price"),
+                "current_price": current_price,
                 "rsi": result.get("rsi"),
                 "macd_histogram": result.get("macd_histogram"),
                 "bollinger_position": result.get("bollinger_position"),
                 "sma_short": result.get("sma_short"),
                 "sma_long": result.get("sma_long"),
                 "momentum_pct": result.get("momentum_pct"),
-                "trend": result.get("trend"),
+                "trend": result.get("trend", "Bilinmiyor"),
                 "signals": result.get("signals", []),
                 "fibonacci": fibonacci,
                 "support": support,
                 "resistance": resistance,
-                "reward_pct": rr["reward_pct"],
-                "risk_pct": rr["risk_pct"],
-                "reward_risk_ratio": rr["ratio"],
+                "reward_pct": rr.get("reward_pct", 0),
+                "risk_pct": rr.get("risk_pct", 0),
+                "reward_risk_ratio": rr.get("ratio", 0),
                 "confidence": ScoreCalculator.calculate_confidence(
                     composite_score,
                     result.get("rsi"),
@@ -152,15 +168,33 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
             }
             
             candidates.append(candidate)
+            print(f"   📊 {ticker:10s} Skor: {composite_score:6.1f}")
+        
+        if not candidates:
+            print(f"\n⚠️  Hiçbir hisse analiz edilmedi")
+            return []
         
         # Skor'a göre sırala
         candidates.sort(key=lambda x: x["score"], reverse=True)
         
-        # En iyi N tanesini seç
-        return candidates[:max_count]
+        # EN İYİ N TANESINI SEÇ
+        selected = candidates[:max_count]
+        
+        if selected:
+            print(f"\n✅ {len(selected)} hisse seçildi:")
+            for i, stock in enumerate(selected, 1):
+                print(f"   {i}. {stock['ticker']:10s} - Skor: {stock['score']:6.1f}")
+        else:
+            print(f"\n⚠️  Hiçbir hisse seçilmedi")
+            # FALLBACK: EN İYİ OLANINI SÇ
+            if candidates:
+                selected = [candidates[0]]
+                print(f"\n   Fallback seçim: {candidates[0]['ticker']} seçildi (Skor: {candidates[0]['score']})")
+        
+        return selected
     
     except Exception as e:
-        print(f"⚠️  Hisse seçim hatası: {e}")
+        print(f"❌ Hisse seçim hatası: {e}")
         return []
 
 
@@ -211,16 +245,20 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict) -> 
 def determine_rating(score: float) -> str:
     """Puan'a göre rating belirle"""
     
-    if score >= 80:
-        return "🟢🟢🟢 KAUFEN (Alım)"
-    elif score >= 70:
-        return "🟢🟢 ÜBERGEWICHT (Yükseltme)"
-    elif score >= 60:
-        return "🟡 HALTEN (Bekle)"
-    elif score >= 40:
-        return "🟠 UNTERGEWICHT (Düşürme)"
-    else:
-        return "🔴 VERKAUFEN (Satış)"
+    try:
+        if score >= 80:
+            return "🟢🟢🟢 KAUFEN (Alım)"
+        elif score >= 70:
+            return "🟢🟢 ÜBERGEWICHT (Yükseltme)"
+        elif score >= 60:
+            return "🟡 HALTEN (Bekle)"
+        elif score >= 40:
+            return "🟠 UNTERGEWICHT (Düşürme)"
+        else:
+            return "🔴 VERKAUFEN (Satış)"
+    
+    except Exception as e:
+        return "❓ Bilinmiyor"
 
 
 def get_sector_recommendation(sector_scores: dict) -> dict:
