@@ -126,13 +126,13 @@ class TestDetermineRating(unittest.TestCase):
     """determine_rating() fonksiyon testleri"""
 
     def test_high_score_rating(self):
-        self.assertIn("KAUFEN", determine_rating(85))
+        self.assertIn("GÜÇLÜ AL", determine_rating(85))
 
     def test_low_score_rating(self):
-        self.assertIn("VERKAUFEN", determine_rating(20))
+        self.assertIn("SAT", determine_rating(20))
 
     def test_mid_score_rating(self):
-        self.assertIn("HALTEN", determine_rating(65))
+        self.assertIn("TUT", determine_rating(65))
 
 
 if __name__ == "__main__":

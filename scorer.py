@@ -103,11 +103,18 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
                 "current_price": current_price,
                 "rsi": result.get("rsi"),
                 "macd_histogram": result.get("macd_histogram"),
+                "macd_line": result.get("macd_line"),
+                "signal_line": result.get("signal_line"),
                 "bollinger_position": result.get("bollinger_position"),
+                "bollinger_upper": result.get("bollinger_upper"),
+                "bollinger_middle": result.get("bollinger_middle"),
+                "bollinger_lower": result.get("bollinger_lower"),
                 "sma_short": result.get("sma_short"),
                 "sma_long": result.get("sma_long"),
                 "momentum_pct": result.get("momentum_pct"),
+                "atr": result.get("atr"),
                 "trend": result.get("trend", "Nötr"),
+                "trend_strength": result.get("trend_strength"),
                 "signals": result.get("signals", []),
                 "fibonacci": fibonacci,
                 "support": support,
@@ -153,11 +160,18 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict) -> 
                 "price": stock.get("current_price", 0),
                 "rsi": stock.get("rsi"),
                 "macd_histogram": stock.get("macd_histogram"),
+                "macd_line": stock.get("macd_line"),
+                "signal_line": stock.get("signal_line"),
                 "bollinger_position": stock.get("bollinger_position"),
+                "bollinger_upper": stock.get("bollinger_upper"),
+                "bollinger_middle": stock.get("bollinger_middle"),
+                "bollinger_lower": stock.get("bollinger_lower"),
                 "sma_short": stock.get("sma_short"),
                 "sma_long": stock.get("sma_long"),
                 "momentum_pct": stock.get("momentum_pct", 0),
+                "atr": stock.get("atr"),
                 "trend": stock.get("trend", "Nötr"),
+                "trend_strength": stock.get("trend_strength"),
                 "support": stock.get("support", 0),
                 "resistance": stock.get("resistance", 0),
                 "reward_pct": stock.get("reward_pct", 0),
@@ -176,15 +190,15 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict) -> 
 def determine_rating(score: float) -> str:
     """Rating Belirle"""
     if score >= 80:
-        return "🟢🟢🟢 KAUFEN"
+        return "🔥 GÜÇLÜ AL"
     elif score >= 70:
-        return "🟢🟢 ÜBERGEWICHT"
+        return "🟢 AL"
     elif score >= 60:
-        return "🟡 HALTEN"
+        return "🟡 TUT"
     elif score >= 40:
-        return "🟠 UNTERGEWICHT"
+        return "🟠 AZALT"
     else:
-        return "🔴 VERKAUFEN"
+        return "🔴 SAT"
 
 
 if __name__ == "__main__":
