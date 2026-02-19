@@ -11,6 +11,7 @@
 
 import os
 import sys
+import logging
 from datetime import datetime
 import traceback
 
@@ -23,8 +24,6 @@ from news_analyzer import analyze_news
 from scorer import select_top_stocks, generate_recommendation_text
 from mail_sender import generate_html_body, send_email
 from chart_generator import generate_charts
-from global_market_analyzer import run_global_analysis, run_advanced_global_analysis
-from advanced_features import run_all_advanced_features
 
 # QUICK MODE - Hızlı test için (GÜVENLİ HİSSELER)
 QUICK_STOCKS = [
@@ -34,6 +33,19 @@ QUICK_STOCKS = [
     "GOOGL",      # Google - USA
     "NVDA"        # Nvidia - USA
 ]
+
+
+def setup_logging():
+    """Python logging modülünü yapılandır"""
+    os.makedirs(os.path.dirname(config.LOG_FILE), exist_ok=True)
+    logging.basicConfig(
+        level=getattr(logging, config.LOG_LEVEL, logging.INFO),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(config.LOG_FILE, encoding="utf-8"),
+            logging.StreamHandler(),
+        ],
+    )
 
 
 def print_header(title: str):
@@ -59,7 +71,7 @@ def run_analysis(quick: bool = False):
         # Analiz edilecek hisseler
         stocks_to_analyze = QUICK_STOCKS if quick else config.ALL_STOCKS
         
-        mode = "⚡ QUICK MODE (5 hisse)" if quick else "📊 NORMAL MODE (92 hisse)"
+        mode = f"⚡ QUICK MODE ({len(QUICK_STOCKS)} hisse)" if quick else f"📊 NORMAL MODE ({len(config.ALL_STOCKS)} hisse)"
         print(f"\n{mode}")
         print(f"Başlangıç: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         
@@ -199,6 +211,8 @@ def run_analysis(quick: bool = False):
 def main():
     """Ana program"""
     
+    setup_logging()
+    
     try:
         # Komut satırı argümanları
         if len(sys.argv) > 1:
@@ -209,7 +223,7 @@ def main():
                     print("⚡ QUICK MODE: Hızlı test (5 hisse, 1 gün haber)")
                     run_analysis(quick=True)
                 else:
-                    print("📊 NORMAL MODE: Tüm hisseler (92 hisse)")
+                    print(f"📊 NORMAL MODE: Tüm hisseler ({len(config.ALL_STOCKS)} hisse)")
                     run_analysis(quick=False)
             
             elif sys.argv[1] == "test":

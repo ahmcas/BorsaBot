@@ -80,7 +80,8 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
             technical_score = result.get("score", 50)
             
             # Haber skoru
-            sector_sentiment = sector_scores.get("teknoloji" if not "." in ticker else "finans", 0.0)
+            sector = config.STOCK_SECTORS.get(ticker, "teknoloji" if "." not in ticker else "finans")
+            sector_sentiment = sector_scores.get(sector, 0.0)
             
             # Composite skor
             composite_score = ScoreCalculator.calculate_composite_score(technical_score, sector_sentiment)
@@ -115,7 +116,7 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
                 "risk_pct": rr["risk_pct"],
                 "confidence": ScoreCalculator.calculate_confidence(composite_score),
                 "dataframe": result.get("dataframe"),
-                "sector": "Teknoloji" if not "." in ticker else "Finans"
+                "sector": config.STOCK_SECTORS.get(ticker, "Teknoloji" if "." not in ticker else "Finans")
             }
             
             candidates.append(candidate)

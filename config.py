@@ -88,28 +88,35 @@ NEUTRAL_SCORE_MAX = 55
 # HİSSE LİSTESİ (BIST & GLOBAL)
 # ═══════════════════════════════════════════════════════════
 
-# BIST Türkiye Hisseleri (47 adet)
+# BIST Türkiye Hisseleri (48 adet)
 BIST_STOCKS = [
     # Finans
-    "GARAN.IS", "ISABANK.IS", "AKBANK.IS", "YKBNK.IS", "PAGB.IS",
-    "SEKB.IS", "TCELL.IS", "SISE.IS", "CCOLA.IS", "AEFKS.IS",
-    
-    # Enerji & Ulaştırma
-    "TUPAS.IS", "ARÇEL.IS", "ENKA.IS", "AYGAZ.IS", "SODA.IS",
-    "NTTUR.IS", "OTKAR.IS", "FROTO.IS", "VESTEL.IS", "KORDS.IS",
-    
+    "GARAN.IS", "ISCTR.IS", "AKBNK.IS", "YKBNK.IS", "VAKBN.IS",
+    "TSKB.IS", "SAHOL.IS", "KCHOL.IS", "AGHOL.IS", "ISMEN.IS",
+
+    # Enerji & Petrokimya
+    "TUPRS.IS", "PETKM.IS", "ENKAI.IS", "AYGAZ.IS", "SODA.IS",
+    "ODAS.IS", "TTKOM.IS",
+
+    # Sanayi & Otomotiv
+    "FROTO.IS", "TOASO.IS", "KORDS.IS", "OTKAR.IS", "VESTL.IS",
+    "ARCLK.IS",
+
     # İnşaat & Gayrimenkul
-    "INDS.IS", "TOASO.IS", "ORKA.IS", "ORKIM.IS", "YABNK.IS",
-    
+    "INDS.IS", "EKGYO.IS", "KONTR.IS", "KRDMD.IS",
+
     # Perakende & Gıda
-    "ULKER.IS", "GRNT.IS", "VAKBN.IS", "PSDTC.IS", "DOHOL.IS",
-    
-    # Teknoloji & Medya
-    "PRIM.IS", "ASELS.IS", "ISMEN.IS", "PARLX.IS", "ENTEL.IS",
-    
-    # Diğer
-    "BIMAS.IS", "EREGL.IS", "TSKB.IS", "ALARK.IS", "NUHCL.IS",
-    "GOLTS.IS", "GENIL.IS", "GEREL.IS", "TRNFP.IS"
+    "ULKER.IS", "BIMAS.IS", "MGROS.IS", "DOHOL.IS", "SOKM.IS",
+
+    # Teknoloji & Savunma
+    "ASELS.IS", "SISE.IS", "CCOLA.IS", "CIMSA.IS",
+
+    # Ulaştırma & Turizm
+    "THYAO.IS", "TCELL.IS", "TAVHL.IS", "PGSUS.IS", "ALARK.IS",
+
+    # Madencilik & Kimya
+    "EREGL.IS", "KOZAL.IS", "KOZAA.IS", "NUHCL.IS",
+    "HEKTS.IS", "SASA.IS", "GUBRF.IS",
 ]
 
 # Global Hisseler (45 adet)
@@ -168,6 +175,122 @@ SECONDARY_SECTORS = [
 ]
 
 ALL_SECTORS = PRIMARY_SECTORS + SECONDARY_SECTORS
+
+# ═══════════════════════════════════════════════════════════
+# SEKTÖR MAPPING (Hisse → Sektör)
+# ═══════════════════════════════════════════════════════════
+
+STOCK_SECTORS = {
+    # BIST - Finans
+    "GARAN.IS": "finans",
+    "ISCTR.IS": "finans",
+    "AKBNK.IS": "finans",
+    "YKBNK.IS": "finans",
+    "VAKBN.IS": "finans",
+    "TSKB.IS": "finans",
+    "SAHOL.IS": "finans",
+    "KCHOL.IS": "finans",
+    "AGHOL.IS": "finans",
+    "ISMEN.IS": "finans",
+    # BIST - Enerji & Petrokimya
+    "TUPRS.IS": "enerji",
+    "PETKM.IS": "enerji",
+    "ENKAI.IS": "enerji",
+    "AYGAZ.IS": "enerji",
+    "SODA.IS": "enerji",
+    "ODAS.IS": "enerji",
+    "KRDMD.IS": "enerji",
+    # BIST - Telekom
+    "TTKOM.IS": "telekom",
+    "TCELL.IS": "telekom",
+    # BIST - Sanayi & Otomotiv
+    "FROTO.IS": "otomotiv",
+    "TOASO.IS": "otomotiv",
+    "KORDS.IS": "otomotiv",
+    "OTKAR.IS": "otomotiv",
+    "VESTL.IS": "teknoloji",
+    "ARCLK.IS": "teknoloji",
+    # BIST - İnşaat & Gayrimenkul
+    "INDS.IS": "inşaat_gayrimenkul",
+    "EKGYO.IS": "inşaat_gayrimenkul",
+    "KONTR.IS": "inşaat_gayrimenkul",
+    "CIMSA.IS": "inşaat_gayrimenkul",
+    "NUHCL.IS": "inşaat_gayrimenkul",
+    # BIST - Perakende & Gıda
+    "ULKER.IS": "gıda",
+    "CCOLA.IS": "gıda",
+    "GUBRF.IS": "gıda",
+    "BIMAS.IS": "perakende",
+    "MGROS.IS": "perakende",
+    "SOKM.IS": "perakende",
+    "DOHOL.IS": "finans",
+    # BIST - Teknoloji & Savunma
+    "ASELS.IS": "savunma",
+    "SISE.IS": "teknoloji",
+    "SASA.IS": "teknoloji",
+    "ALARK.IS": "teknoloji",
+    "HEKTS.IS": "sağlık",
+    # BIST - Ulaştırma & Turizm
+    "THYAO.IS": "ulaştırma",
+    "TAVHL.IS": "ulaştırma",
+    "PGSUS.IS": "ulaştırma",
+    # BIST - Madencilik
+    "EREGL.IS": "enerji",
+    "KOZAL.IS": "madencilik",
+    "KOZAA.IS": "madencilik",
+    # Global - Teknoloji
+    "AAPL": "teknoloji",
+    "MSFT": "teknoloji",
+    "NVDA": "teknoloji",
+    "GOOGL": "teknoloji",
+    "META": "teknoloji",
+    "TSLA": "otomotiv",
+    "AVGO": "teknoloji",
+    "AMD": "teknoloji",
+    "ASML": "teknoloji",
+    "MU": "teknoloji",
+    "AMZN": "teknoloji",
+    # Global - Finans
+    "JPM": "finans",
+    "BAC": "finans",
+    "WFC": "finans",
+    "GS": "finans",
+    "MS": "finans",
+    # Global - Enerji
+    "XOM": "enerji",
+    "CVX": "enerji",
+    "COP": "enerji",
+    "SLB": "enerji",
+    "EOG": "enerji",
+    # Global - Sağlık
+    "JNJ": "sağlık",
+    "UNH": "sağlık",
+    "PFE": "sağlık",
+    "AZN": "sağlık",
+    "LLY": "sağlık",
+    # Global - Perakende & Gıda
+    "WMT": "perakende",
+    "HD": "perakende",
+    "NKE": "perakende",
+    "MCD": "gıda",
+    # Global - Telekom
+    "VZ": "telekom",
+    "T": "telekom",
+    "TMUS": "telekom",
+    "CMCSA": "telekom",
+    "CHTR": "telekom",
+    # Global - Otomotiv
+    "TM": "otomotiv",
+    "HMC": "otomotiv",
+    "BMW": "otomotiv",
+    "VWAGY": "otomotiv",
+    "GELYF": "otomotiv",
+    # İndeks
+    "SPY": "indeks",
+    "QQQ": "indeks",
+    "IWM": "indeks",
+    "EEM": "indeks",
+}
 
 # ═══════════════════════════════════════════════════════════
 # VERİTABANI AYARLARI
