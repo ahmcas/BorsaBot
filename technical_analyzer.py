@@ -227,7 +227,7 @@ class TechnicalAnalyzer:
                 score = 45 - (abs(momentum) * 0.5)
             else:
                 trend = "Nötr"
-                signals = ["⚪ Nötr"]
+                signals = ["⚪ Nötr (Belirgin Sinyal Yok)"]
                 score = 50.0
             
             score = max(0, min(100, round(score, 1)))
@@ -284,7 +284,9 @@ class TechnicalAnalyzer:
                 "signals": ["⚪ Minimal veri"],
                 "fibonacci": {
                     "current": round(current_price, 2),
+                    "fib_0.236": round(current_price * 1.01, 2),
                     "fib_0.382": round(current_price, 2),
+                    "fib_0.618": round(current_price * 0.99, 2),
                 },
                 "trend": "Nötr",
                 "trend_strength": "N/A",
@@ -491,36 +493,36 @@ class TechnicalAnalyzer:
         
         try:
             if rsi and rsi < 30:
-                signals.append(f"📊 RSI {rsi:.1f} → Oversold (AL)")
+                signals.append(f"📊 RSI {rsi:.1f} → Oversold (Aşırı Satım - AL Fırsatı)")
             elif rsi and rsi > 70:
-                signals.append(f"📊 RSI {rsi:.1f} → Overbought (SAT)")
+                signals.append(f"📊 RSI {rsi:.1f} → Overbought (Aşırı Alım - SAT Sinyali)")
             
             if macd.get("histogram", 0) > 0:
-                signals.append("📈 MACD → Bullish")
+                signals.append("📈 MACD → Bullish (Yükseliş Sinyali)")
             elif macd.get("histogram", 0) < 0:
-                signals.append("📉 MACD → Bearish")
+                signals.append("📉 MACD → Bearish (Düşüş Sinyali)")
             
             if bollinger.get("position") == "alt":
-                signals.append("📊 Bollinger → Alt (AL)")
+                signals.append("📊 Bollinger → Alt Bant (Alım Fırsatı)")
             elif bollinger.get("position") == "üst":
-                signals.append("📊 Bollinger → Üst (SAT)")
+                signals.append("📊 Bollinger → Üst Bant (Satış Sinyali)")
             
             if sma20 and sma50 and price:
                 if price > sma20 > sma50:
-                    signals.append("📈 SMA → Bullish Align")
+                    signals.append("📈 SMA → Bullish Align (Yükseliş Hizası)")
                 elif price < sma20 < sma50:
-                    signals.append("📉 SMA → Bearish Align")
+                    signals.append("📉 SMA → Bearish Align (Düşüş Hizası)")
             
             if momentum:
                 if momentum > 5:
-                    signals.append(f"📈 Momentum {momentum:+.1f}%")
+                    signals.append(f"📈 Momentum {momentum:+.1f}% (Yukarı İvme)")
                 elif momentum < -5:
-                    signals.append(f"📉 Momentum {momentum:+.1f}%")
+                    signals.append(f"📉 Momentum {momentum:+.1f}% (Aşağı İvme)")
             
-            return signals if signals else ["⚪ Nötr"]
+            return signals if signals else ["⚪ Nötr (Belirgin Sinyal Yok)"]
         
         except:
-            return ["⚪ Nötr"]
+            return ["⚪ Nötr (Belirgin Sinyal Yok)"]
     
     @staticmethod
     def calculate_technical_score(rsi, macd, bollinger, sma20, sma50, momentum, price) -> float:

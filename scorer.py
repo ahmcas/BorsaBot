@@ -177,7 +177,8 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict) -> 
                 "reward_pct": stock.get("reward_pct", 0),
                 "risk_pct": stock.get("risk_pct", 0),
                 "confidence": stock.get("confidence", "Orta"),
-                "signals": stock.get("signals", [])
+                "signals": stock.get("signals", []),
+                "fibonacci": stock.get("fibonacci", {})
             }
             recommendations["recommendations"].append(rec)
         
