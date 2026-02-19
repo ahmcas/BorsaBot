@@ -1,5 +1,5 @@
 # ============================================================
-# news_analyzer.py — Haber Analizi Engine (v2 - KOMPLE)
+# news_analyzer.py — Haber Analizi Engine (v3 - HIZLI)
 # ============================================================
 
 import requests
@@ -8,15 +8,22 @@ from collections import defaultdict
 import config
 
 try:
-    from textblob import TextBlob
+    from nltk.sentiment import SentimentIntensityAnalyzer
+    import nltk
+    try:
+        nltk.data.find('sentiment/vader_lexicon')
+    except LookupError:
+        nltk.download('vader_lexicon', quiet=True)
 except:
     import subprocess
-    subprocess.run(["pip", "install", "textblob"], check=True)
-    from textblob import TextBlob
+    subprocess.run(["pip", "install", "nltk"], check=True)
+    from nltk.sentiment import SentimentIntensityAnalyzer
+    import nltk
+    nltk.download('vader_lexicon', quiet=True)
 
 
 class NewsAnalyzer:
-    """Haber Analizi ve Sentiment"""
+    """Haber Analizi ve Sentiment (HIZLI VERSIYON)"""
     
     # Sektör anahtar kelimeleri
     SECTOR_KEYWORDS = {
@@ -38,21 +45,6 @@ class NewsAnalyzer:
         "medya": ["media", "entertainment", "netflix", "streaming"]
     }
     
-    # Sentiment anahtar kelimeleri
-    POSITIVE_KEYWORDS = [
-        "gain", "surge", "jump", "boom", "rally", "bullish", "beat",
-        "growth", "profit", "success", "positive", "strong", "rise",
-        "record", "high", "up", "increase", "bull", "optimistic",
-        "upgrade", "target raised", "buy", "outperform", "momentum"
-    ]
-    
-    NEGATIVE_KEYWORDS = [
-        "loss", "crash", "plunge", "bearish", "miss", "decline",
-        "drop", "fall", "down", "decrease", "bear", "pessimistic",
-        "downgrade", "target lowered", "sell", "underperform",
-        "warning", "concern", "risk", "weak", "slump", "tumble"
-    ]
-    
     @staticmethod
     def get_news(keyword: str, days_back: int = 7) -> list:
         """NewsAPI'den haber çek"""
@@ -63,7 +55,6 @@ class NewsAnalyzer:
                 print("⚠️  NewsAPI anahtarı tanımlanmamış")
                 return []
             
-            # Tarih aralığı
             to_date = datetime.now()
             from_date = to_date - timedelta(days=days_back)
             
@@ -94,28 +85,16 @@ class NewsAnalyzer:
     
     @staticmethod
     def analyze_sentiment(text: str) -> float:
-        """Metin sentiment analizi (-1 negatif, +1 pozitif)"""
+        """Metin sentiment analizi (VADER - Hızlı)"""
         try:
             if not text:
                 return 0.0
             
-            # TextBlob sentiment analizi
-            blob = TextBlob(str(text).lower())
-            polarity = blob.sentiment.polarity
+            sia = SentimentIntensityAnalyzer()
+            scores = sia.polarity_scores(text)
             
-            # Anahtar kelimelere göre boost et
-            text_lower = text.lower()
-            
-            positive_count = sum(1 for word in NewsAnalyzer.POSITIVE_KEYWORDS if word in text_lower)
-            negative_count = sum(1 for word in NewsAnalyzer.NEGATIVE_KEYWORDS if word in text_lower)
-            
-            keyword_sentiment = (positive_count - negative_count) * 0.1
-            
-            # Sentimenti birleştir
-            final_sentiment = polarity * 0.7 + keyword_sentiment * 0.3
-            
-            # -1 ile +1 arasında sınırla
-            return max(-1.0, min(1.0, final_sentiment))
+            # Compound score: -1 (negatif) ile +1 (pozitif) arasında
+            return float(scores['compound'])
         
         except Exception as e:
             print(f"[ERROR] Sentiment analizi hatası: {e}")
@@ -131,7 +110,6 @@ class NewsAnalyzer:
             if any(keyword in text_lower for keyword in keywords):
                 sectors.append(sector)
         
-        # Eğer hiçbir sektör yoksa "genel"
         if not sectors:
             sectors = ["genel"]
         
@@ -159,7 +137,6 @@ class NewsAnalyzer:
                 title = article.get("title", "")
                 description = article.get("description", "")
                 
-                # Sentiment analizi
                 text = f"{title} {description}"
                 sentiment = NewsAnalyzer.analyze_sentiment(text)
                 sentiments.append(sentiment)
@@ -173,7 +150,6 @@ class NewsAnalyzer:
                     "sentiment": sentiment
                 })
             
-            # Ortalama sentiment
             avg_sentiment = sum(sentiments) / len(sentiments) if sentiments else 0.0
             
             if avg_sentiment > 0.3:
@@ -203,15 +179,10 @@ class NewsAnalyzer:
 
 
 def analyze_news(days_back: int = 7) -> dict:
-    """
-    Tüm sektörlerin haber sentiment skorunu hesapla
-    Döndürür: {"sektör": sentiment_score}
-    """
+    """Tüm sektörlerin haber sentiment skorunu hesapla"""
     print(f"\n📰 Haber analizi başlıyor ({days_back} gün)...")
     
     sector_scores = {}
-    
-    # Tüm sektörler
     sectors = list(NewsAnalyzer.SECTOR_KEYWORDS.keys())
     
     for sector in sectors:
@@ -231,7 +202,6 @@ def analyze_news(days_back: int = 7) -> dict:
             print(f"❌ {sector.upper():20s} - Hata: {e}")
             sector_scores[sector] = 0.0
     
-    # Genel skor (tümünün ortalaması)
     if sector_scores:
         general_score = sum(sector_scores.values()) / len(sector_scores)
         sector_scores["genel"] = general_score
@@ -241,35 +211,9 @@ def analyze_news(days_back: int = 7) -> dict:
     return sector_scores
 
 
-def get_top_sector_news(top_n: int = 5) -> dict:
-    """En olumlu ve olumsuz sektörlerin haberini getir"""
-    try:
-        sector_scores = analyze_news()
-        
-        # Sıralama
-        sorted_sectors = sorted(
-            sector_scores.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
-        
-        top_positive = sorted_sectors[:top_n]
-        top_negative = sorted_sectors[-top_n:]
-        
-        return {
-            "top_positive": top_positive,
-            "top_negative": top_negative,
-            "all_scores": sector_scores
-        }
-    
-    except Exception as e:
-        print(f"[ERROR] Top sektör analizi hatası: {e}")
-        return {"top_positive": [], "top_negative": [], "all_scores": {}}
-
-
 if __name__ == "__main__":
-    # Test
-    print("🧪 News Analyzer Testi Başlıyor...\n")
+    print("🧪 News Analyzer Testi")
+    print("=" * 50)
     
     scores = analyze_news(days_back=3)
     
