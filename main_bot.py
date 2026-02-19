@@ -1,5 +1,5 @@
 # ============================================================
-# main_bot.py — Ana Orchestrator (v5 - KOMPLE FINAL)
+# main_bot.py — Ana Orchestrator (v6 - KOMPLE FINAL)
 # ============================================================
 # Tüm modülleri koordine eden ana dosya
 # Çalışma modları:
@@ -26,8 +26,14 @@ from chart_generator import generate_charts
 from global_market_analyzer import run_global_analysis, run_advanced_global_analysis
 from advanced_features import run_all_advanced_features
 
-# QUICK MODE - Hızlı test için
-QUICK_STOCKS = ["GARAN.IS", "ISABANK.IS", "AAPL", "MSFT", "NVDA"]
+# QUICK MODE - Hızlı test için (GÜVENLİ HİSSELER)
+QUICK_STOCKS = [
+    "GARAN.IS",   # Garanti Bankası - TÜRKİYE
+    "AAPL",       # Apple - USA
+    "MSFT",       # Microsoft - USA
+    "GOOGL",      # Google - USA
+    "NVDA"        # Nvidia - USA
+]
 
 
 def print_header(title: str):
@@ -65,7 +71,12 @@ def run_analysis(quick: bool = False):
         try:
             technical_results = analyze_all_stocks(stocks_to_analyze)
             successful_tech = len([r for r in technical_results if not r.get('skip')])
-            print(f"✅ {successful_tech}/{len(stocks_to_analyze)} hisse analiz edildi")
+            
+            if successful_tech == 0:
+                print(f"⚠️  Hiçbir hisse analiz edilmedi, fallback aktive ediliyor...")
+            else:
+                print(f"✅ {successful_tech}/{len(stocks_to_analyze)} hisse analiz edildi")
+        
         except Exception as e:
             print(f"❌ Teknik analiz hatası: {e}")
             technical_results = []
@@ -90,13 +101,25 @@ def run_analysis(quick: bool = False):
         
         try:
             selected = select_top_stocks(technical_results, sector_scores, max_count=5)
-            print(f"✅ {len(selected)} hisse seçildi")
             
-            if selected:
+            if len(selected) == 0:
+                print(f"⚠️  Hiçbir hisse seçilmedi!")
+                print(f"   Fallback: İlk 1-2 hisse manuel olarak seçiliyor...")
+                
+                # Fallback: En azından birini seç
+                if technical_results:
+                    valid = [r for r in technical_results if not r.get('skip')]
+                    if valid:
+                        selected = valid[:1]
+                        print(f"   ✅ Fallback seçim: {selected[0].get('ticker')}")
+            else:
+                print(f"✅ {len(selected)} hisse seçildi")
                 for i, stock in enumerate(selected, 1):
                     print(f"   {i}. {stock.get('ticker', '?'):10s} - Skor: {stock.get('score', 0):6.1f}")
+        
         except Exception as e:
             print(f"❌ Skor hesaplama hatası: {e}")
+            traceback.print_exc()
             selected = []
         
         # ═══════════════════════════════════════════════════════════
@@ -110,6 +133,7 @@ def run_analysis(quick: bool = False):
             print(f"✅ {rec_count} öneri oluşturuldu")
         except Exception as e:
             print(f"❌ Öneri oluşturma hatası: {e}")
+            traceback.print_exc()
             recommendations = {"recommendations": [], "total_selected": 0}
         
         # ═══════════════════════════════════════════════════════════
@@ -203,7 +227,7 @@ def main():
 Komutlar:
 
   python main_bot.py once --quick
-      → Hızlı test mode (5 hisse, ~10 saniye)
+      → Hızlı test mode (5 hisse, ~10-20 saniye)
       → Önerilir: İlk kez test etmek için
 
   python main_bot.py once
@@ -228,6 +252,7 @@ Hata oluşması durumunda:
   1. config.py'de API anahtarlarını kontrol et
   2. Internet bağlantısını kontrol et
   3. requirements.txt paketlerinin kurulu olduğunu kontrol et
+  4. .env dosyasının varolduğunu kontrol et
 
 API Limitleri:
   - NewsAPI: 100 istek/24 saat (ücretsiz)
@@ -237,6 +262,12 @@ Sonuçlar:
   - Email: Belirtilen alıcı adresine gönderilir
   - Grafikleri: charts/ klasöründe kaydedilir
   - Loglar: logs/ klasöründe kaydedilir
+  - Cache: cache/ klasöründe kaydedilir
+
+Troubleshooting:
+  - Hiçbir hisse seçilmiyorsa: QUICK_STOCKS listesini kontrol et
+  - Email gelmiyorsa: .env MAIL_* ayarlarını kontrol et
+  - API hata veriyorsa: NewsAPI anahtarını kontrol et
                 """)
             
             else:
