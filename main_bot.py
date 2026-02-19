@@ -24,6 +24,8 @@ from news_analyzer import analyze_news
 from scorer import select_top_stocks, generate_recommendation_text
 from mail_sender import generate_html_body, send_email
 from chart_generator import generate_charts
+from commodity_analyzer import CommodityAnalyzer
+from macro_analyzer import MacroAnalyzer
 
 # QUICK MODE - Hızlı test için (GÜVENLİ HİSSELER)
 QUICK_STOCKS = [
@@ -112,7 +114,7 @@ def run_analysis(quick: bool = False):
         print_section("ADIM 3: Skor Hesaplama")
         
         try:
-            selected = select_top_stocks(technical_results, sector_scores, max_count=5)
+            selected = select_top_stocks(technical_results, sector_scores, max_count=config.MAX_RECOMMENDATIONS)
             
             if len(selected) == 0:
                 print(f"⚠️  Hiçbir hisse seçilmedi!")
@@ -140,7 +142,7 @@ def run_analysis(quick: bool = False):
         print_section("ADIM 4: Öneriler Üretiliyor")
         
         try:
-            recommendations = generate_recommendation_text(selected, sector_scores)
+            recommendations = generate_recommendation_text(selected, sector_scores, candidates=selected)
             rec_count = len(recommendations.get("recommendations", []))
             print(f"✅ {rec_count} öneri oluşturuldu")
         except Exception as e:
@@ -149,13 +151,50 @@ def run_analysis(quick: bool = False):
             recommendations = {"recommendations": [], "total_selected": 0}
         
         # ═══════════════════════════════════════════════════════════
+        # ADIM 4.5: Emtia & Makro Analiz
+        # ═══════════════════════════════════════════════════════════
+        print_section("ADIM 4.5: Emtia & Makro Analiz")
+        
+        commodity_data = None
+        macro_data = None
+        holiday_alerts = []
+        
+        try:
+            commodity_data = CommodityAnalyzer.analyze_all_commodities()
+            print(f"✅ Emtia analizi tamamlandı")
+        except Exception as e:
+            print(f"⚠️  Emtia analizi yapılamadı: {e}")
+        
+        try:
+            dxy_result = MacroAnalyzer.analyze_dxy()
+            debt_result = MacroAnalyzer.get_us_debt_analysis()
+            geo_risk = sector_scores.get("geopolitical_risk", {})
+            supply_demand = sector_scores.get("supply_demand_trends", [])
+            macro_data = {
+                "us_debt": debt_result,
+                "dxy": dxy_result,
+                "geopolitical_risk": geo_risk,
+                "supply_demand_trends": supply_demand,
+            }
+            holiday_alerts = MacroAnalyzer.check_upcoming_holidays(days_ahead=14)
+            print(f"✅ Makro analiz tamamlandı")
+        except Exception as e:
+            print(f"⚠️  Makro analiz yapılamadı: {e}")
+        
+        # ═══════════════════════════════════════════════════════════
         # ADIM 5: Email Hazırlama ve Gönderme
         # ═══════════════════════════════════════════════════════════
         print_section("ADIM 5: Email Hazırlanıyor")
         
         try:
             # HTML body oluştur
-            html_body = generate_html_body(recommendations)
+            html_body = generate_html_body(
+                recommendations=recommendations,
+                commodity_data=commodity_data,
+                macro_data=macro_data,
+                sector_scores=sector_scores,
+                holiday_alerts=holiday_alerts,
+            )
             print("✅ Email HTML oluşturuldu")
             
             # Grafikler (opsiyonel)

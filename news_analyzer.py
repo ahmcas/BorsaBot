@@ -492,9 +492,25 @@ def analyze_news(days_back: int = 1) -> dict:
     else:
         sector_scores["genel"] = 0.0
     
+    # ADIM 4: Jeopolitik risk ve arz-talep analizi
+    try:
+        from macro_analyzer import MacroAnalyzer
+        all_articles = []
+        for sector in list(NewsAnalyzer.PRIMARY_SECTORS.keys())[:2]:
+            cache_key = f"sector_{sector}_{days_back}"
+            cached = NewsAnalyzer._cache.get(cache_key)
+            if cached and cached.get("articles"):
+                all_articles.extend(cached["articles"])
+        
+        sector_scores["geopolitical_risk"] = MacroAnalyzer.analyze_geopolitical_risk(all_articles)
+        sector_scores["supply_demand_trends"] = MacroAnalyzer.detect_supply_demand_trends(all_articles)
+    except Exception:
+        sector_scores["geopolitical_risk"] = {"risk_level": "Bilinmiyor", "risks": [], "affected_sectors": []}
+        sector_scores["supply_demand_trends"] = []
+    
     # Bilgilendirme
     remaining = NewsAnalyzer._rate_limiter.requests_remaining()
-    print(f"\n✅ {len(sector_scores)-1} sektör analiz edildi")
+    print(f"\n✅ {len(sector_scores)-3} sektör analiz edildi")
     print(f"   📊 API limit: {remaining}/100 istek kaldı")
     print(f"   💾 Cache bellek: {NewsAnalyzer._cache.get_memory_usage()}")
     
