@@ -428,6 +428,98 @@ def generate_html_body(recommendations, chart_paths=None) -> str:
                 
                 <!-- CONTENT -->
                 <div class="content">
+                    <!-- SKOR & RATING REHBERİ -->
+                    <div class="section">
+                        <div class="section-title">📖 Skor &amp; Rating Rehberi</div>
+                        <table style="width:100%; border-collapse: collapse; background: #21262d; border-radius: 8px; overflow: hidden;">
+                            <thead>
+                                <tr style="background: #30363d;">
+                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Skor</th>
+                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Rating</th>
+                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Anlamı</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold;">≥ 80</td>
+                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🔥 GÜÇLÜ AL</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumlu, güçlü alım fırsatı</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d; background: #161b22;">
+                                    <td style="padding: 10px 15px; color: #56d364; font-weight: bold;">≥ 70</td>
+                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🟢 AL</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Göstergeler olumlu, alım yapılabilir</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #d29922; font-weight: bold;">≥ 60</td>
+                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🟡 TUT</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Mevcut pozisyonu koru, ne al ne sat</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d; background: #161b22;">
+                                    <td style="padding: 10px 15px; color: #d29922; font-weight: bold;">≥ 40</td>
+                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🟠 AZALT</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Göstergeler olumsuz, pozisyonu kademeli azalt</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #f85149; font-weight: bold;">&lt; 40</td>
+                                    <td style="padding: 10px 15px; color: #e6edf3; font-weight: bold;">🔴 SAT</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumsuz, sat</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- TEKNİK GÖSTERGE REHBERİ -->
+                    <div class="section">
+                        <div class="section-title">🔬 Teknik Gösterge Rehberi</div>
+                        <table style="width:100%; border-collapse: collapse; background: #21262d; border-radius: 8px; overflow: hidden;">
+                            <thead>
+                                <tr style="background: #30363d;">
+                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Gösterge</th>
+                                    <th style="padding: 12px 15px; text-align: left; color: #8b949e; font-size: 12px; text-transform: uppercase; font-weight: 600;">Açıklama</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">RSI (14)</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">30 altı aşırı satım (alım fırsatı), 70 üzeri aşırı alım (satış sinyali)</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d; background: #161b22;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">MACD Histogram</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Pozitif → yükseliş trendi güçleniyor, Negatif → düşüş trendi güçleniyor</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Signal Line</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">MACD çizgisinin ortalaması; MACD signal line'ı yukarı keserse AL, aşağı keserse SAT sinyali</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d; background: #161b22;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">SMA 20 / SMA 50</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Kısa/uzun vadeli ortalama; fiyat üstündeyse yükseliş, altındaysa düşüş</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Bollinger Bantları</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Alt banda yakınsa alım fırsatı, üst banda yakınsa satış sinyali</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d; background: #161b22;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Momentum</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Pozitif → yukarı ivme, negatif → aşağı ivme</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">ATR</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Volatilite ölçüsü — yüksek ATR = yüksek risk ve hareket</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d; background: #161b22;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Fibonacci</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">0.618 → güçlü destek, 0.236 → güçlü direnç noktası</td>
+                                </tr>
+                                <tr style="border-top: 1px solid #30363d;">
+                                    <td style="padding: 10px 15px; color: #58a6ff; font-weight: bold; white-space: nowrap;">Risk/Reward</td>
+                                    <td style="padding: 10px 15px; color: #8b949e; font-size: 13px;">Kazanç/risk oranı — kazanç yüksek, risk düşükse iyi fırsat</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
                     <!-- ÖNERİLER BÖLÜMÜ -->
                     <div class="section">
                         <div class="section-title">🎯 Önerilen Hisseler</div>
@@ -472,6 +564,9 @@ def generate_html_body(recommendations, chart_paths=None) -> str:
                 fib_236 = fibonacci.get('fib_0.236') or 0
                 fib_382 = fibonacci.get('fib_0.382') or 0
                 fib_618 = fibonacci.get('fib_0.618') or 0
+                fib_236_str = f"{currency}{fib_236:.2f}" if fib_236 else "Veri Yok"
+                fib_382_str = f"{currency}{fib_382:.2f}" if fib_382 else "Veri Yok"
+                fib_618_str = f"{currency}{fib_618:.2f}" if fib_618 else "Veri Yok"
                 
                 html += f"""
                     <div class="stock-card">
@@ -620,15 +715,15 @@ def generate_html_body(recommendations, chart_paths=None) -> str:
                                 </div>
                                 <div class="fib-item">
                                     <div class="fib-label">Fib 0.236</div>
-                                    <div class="fib-value">{currency}{fib_236:.2f}</div>
+                                    <div class="fib-value">{fib_236_str}</div>
                                 </div>
                                 <div class="fib-item">
                                     <div class="fib-label">Fib 0.382</div>
-                                    <div class="fib-value">{currency}{fib_382:.2f}</div>
+                                    <div class="fib-value">{fib_382_str}</div>
                                 </div>
                                 <div class="fib-item">
                                     <div class="fib-label">Fib 0.618</div>
-                                    <div class="fib-value">{currency}{fib_618:.2f}</div>
+                                    <div class="fib-value">{fib_618_str}</div>
                                 </div>
                             </div>
                         </div>
