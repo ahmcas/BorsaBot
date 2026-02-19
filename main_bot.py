@@ -1,5 +1,5 @@
 # ============================================================
-# main_bot.py — Ana Orchestrator (QUICK MODE)
+# main_bot.py — Ana Orchestrator (HATASIZ)
 # ============================================================
 
 import os
@@ -18,9 +18,8 @@ from chart_generator import generate_charts
 from global_market_analyzer import run_global_analysis, run_advanced_global_analysis
 from advanced_features import run_all_advanced_features
 
-# QUICK TEST MODE
-QUICK_MODE = True  # ← BUNU BURSAYA AYARLA
-QUICK_STOCKS = ["AKBANK.IS", "AAPL", "MSFT", "GARAN.IS", "ISA.IS"]  # Sadece 5 hisse
+# QUICK MODE - Hızlı test için
+QUICK_STOCKS = ["GARAN.IS", "ISA.IS", "AAPL", "MSFT", "NVDA"]  # Sadece güvenilir hisseler
 
 
 def run_analysis(quick=False):
@@ -34,25 +33,26 @@ def run_analysis(quick=False):
     
     print(f"\n📊 Analiz edilen hisseler: {len(stocks_to_analyze)}")
     
-    # ADIM 1: Teknik Analiz (Hızlı)
+    # ADIM 1: Teknik Analiz
     print("\n📊 ADIM 1: Teknik Analiz...")
     try:
         technical_results = analyze_all_stocks(stocks_to_analyze)
-        print(f"✅ {len([r for r in technical_results if not r.get('skip')])} hisse analiz edildi")
+        successful = len([r for r in technical_results if not r.get('skip')])
+        print(f"✅ {successful}/{len(stocks_to_analyze)} hisse analiz edildi")
     except Exception as e:
         print(f"❌ Teknik analiz hatası: {e}")
         technical_results = []
     
-    # ADIM 2: Haber Analizi (Hızlı)
+    # ADIM 2: Haber Analizi (Sınırlı)
     print("\n📰 ADIM 2: Haber Analizi...")
     try:
-        sector_scores = analyze_news(days_back=3)  # 7 günden 3 güne düşür
+        sector_scores = analyze_news(days_back=1)  # 1 günlük haber (API limit)
         print(f"✅ Haber analizi tamamlandı")
     except Exception as e:
-        print(f"❌ Haber analizi hatası: {e}")
+        print(f"⚠️  Haber analizi yapılamadı (API limit): {e}")
         sector_scores = {}
     
-    # ADIM 3: Skor Hesaplama ve Seçim
+    # ADIM 3: Skor Hesaplama
     print("\n🎯 ADIM 3: Skor Hesaplama...")
     try:
         selected = select_top_stocks(technical_results, sector_scores, max_count=3)
@@ -61,37 +61,14 @@ def run_analysis(quick=False):
         print(f"❌ Skor hesaplama hatası: {e}")
         selected = []
     
-    # ADIM 4: Recommendation Oluştur
-    print("\n📋 ADIM 4: Öneriler Hazırlanıyor...")
+    # ADIM 4: Email Hazırlama
+    print("\n📧 ADIM 4: Email Hazırlanıyor...")
     try:
         recommendations = generate_recommendation_text(selected, sector_scores)
-        print(f"✅ Öneriler oluşturuldu")
-    except Exception as e:
-        print(f"❌ Öneri oluşturma hatası: {e}")
-        recommendations = {"recommendations": [], "total_selected": 0}
-    
-    # ADIM 5: Email Oluştur ve Gönder
-    print("\n📧 ADIM 5: Email Hazırlanıyor...")
-    try:
         html_body = generate_html_body(recommendations)
         
-        # Grafikler (opsiyonel, hızlı mode'da atla)
-        chart_paths = []
-        if not quick:
-            print("   📈 Grafikler oluşturuluyor...")
-            for stock in selected:
-                try:
-                    df = stock.get("dataframe")
-                    if df is not None:
-                        chart_path = generate_charts(stock.get("ticker"), df)
-                        if chart_path:
-                            chart_paths.append(chart_path)
-                except:
-                    pass
-        
         # Email gönder
-        print("   📤 Email gönderiliyor...")
-        send_email(html_body, chart_paths)
+        send_email(html_body, [])
         print("✅ Email gönderildi!")
         
     except Exception as e:
@@ -107,33 +84,27 @@ def main():
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "once":
-            # Tek seferlik çalıştır
             if len(sys.argv) > 2 and sys.argv[2] == "--quick":
-                print("⚡ QUICK MODE AÇIK (5 hisse)")
+                print("⚡ QUICK MODE (5 hisse, 1 gün)")
                 run_analysis(quick=True)
             else:
-                print("📊 NORMAL MODE (92 hisse)")
+                print("📊 NORMAL MODE (tüm hisseler)")
                 run_analysis(quick=False)
         
         elif sys.argv[1] == "test":
-            # Test mode
-            print("🧪 TEST MODE (5 hisse)")
+            print("🧪 TEST MODE")
             run_analysis(quick=True)
         
         elif sys.argv[1] == "help":
             print("""
             Kullanım:
-            
-            python main_bot.py once          - Tüm hisse analiz et
-            python main_bot.py once --quick  - Sadece 5 hisse analiz et (HIZLI)
+            python main_bot.py once --quick  - Hızlı test (5 hisse)
+            python main_bot.py once          - Tüm hisseler
             python main_bot.py test          - Test mode
-            python main_bot.py               - Scheduler mode (her gün 09:30)
             """)
-    
     else:
         # Scheduler mode
         print("🔄 SCHEDULER MODE BAŞLATILIYOR")
-        print(f"📅 Her gün saat {config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d} çalışacak")
         
         import schedule
         import time
@@ -141,24 +112,21 @@ def main():
         def job():
             run_analysis(quick=False)
         
-        schedule.every().day.at(f"{config.DAILY_RUN_HOUR}:{config.DAILY_RUN_MINUTE:02d}").do(job)
+        schedule.every().day.at("09:30").do(job)
         
-        print("✅ Scheduler başladı. Ctrl+C ile durdur.")
+        print("✅ Scheduler başladı")
         
         try:
             while True:
                 schedule.run_pending()
                 time.sleep(60)
         except KeyboardInterrupt:
-            print("\n❌ Scheduler durduruldu")
+            print("\n❌ Durduruldu")
 
 
 if __name__ == "__main__":
     try:
         main()
-    except KeyboardInterrupt:
-        print("\n\n❌ Program durduruldu")
-        sys.exit(0)
     except Exception as e:
-        print(f"\n❌ Hata: {e}")
+        print(f"❌ Hata: {e}")
         sys.exit(1)
