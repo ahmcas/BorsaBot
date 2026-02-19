@@ -110,14 +110,24 @@ Risk: -8.5% | Potansiyel: +15.2%
 
 ```
 borsa_bot/
-├── config.py              # Tüm ayarlar
+├── config.py              # Tüm ayarlar (ticker listesi, sektör mapping)
 ├── news_analyzer.py       # Haber analizi
 ├── technical_analyzer.py  # Teknik analiz
 ├── scorer.py              # Master skor
 ├── chart_generator.py     # Grafik üretimi
 ├── mail_sender.py         # Email sistemi
 ├── main_bot.py            # Ana orchestrator
+├── global_market_analyzer.py  # Küresel piyasa analizi
+├── advanced_features.py   # İleri özellikler
+├── performance_tracker.py # Performans takibi
+├── backtest.py            # Backtesting
+├── check_performance.py   # Performans kontrol
 ├── requirements.txt       # Python paketleri
+├── LICENSE                # MIT Lisansı
+├── tests/                 # Unit testler
+│   ├── __init__.py
+│   ├── test_config.py     # Config validation testleri
+│   └── test_scorer.py     # Skor hesaplama testleri
 ├── .github/workflows/     # GitHub Actions
 │   └── daily_analysis.yml
 └── README.md              # Bu dosya
