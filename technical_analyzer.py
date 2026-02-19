@@ -36,6 +36,9 @@ class TechnicalAnalyzer:
             if isinstance(df, pd.Series):
                 df = df.to_frame()
             
+            # Handle yfinance MultiIndex columns (v0.2.31+)
+            if isinstance(df.columns, pd.MultiIndex):
+                df.columns = df.columns.get_level_values(0)
             df.columns = [str(col).lower().replace(' ', '_') for col in df.columns]
             
             required = ['close', 'high', 'low', 'volume']
@@ -174,7 +177,12 @@ class TechnicalAnalyzer:
                     "score": 50.0,
                     "rsi": 50,
                     "macd_histogram": 0,
+                    "macd_line": 0,
+                    "signal_line": 0,
                     "bollinger_position": "orta",
+                    "bollinger_upper": 0,
+                    "bollinger_middle": 0,
+                    "bollinger_lower": 0,
                     "sma_short": round(current_price * 0.98, 2),
                     "sma_long": round(current_price * 0.95, 2),
                     "momentum_pct": 0.0,
@@ -183,6 +191,7 @@ class TechnicalAnalyzer:
                     "fibonacci": {
                         "current": round(current_price, 2),
                         "fib_0.236": round(current_price * 1.02, 2),
+                        "fib_0.382": round(current_price * 0.99, 2),
                         "fib_0.618": round(current_price * 0.962, 2),
                     },
                     "trend": "Nötr",
@@ -193,6 +202,9 @@ class TechnicalAnalyzer:
             if isinstance(short_df, pd.Series):
                 short_df = short_df.to_frame()
             
+            # Handle yfinance MultiIndex columns (v0.2.31+)
+            if isinstance(short_df.columns, pd.MultiIndex):
+                short_df.columns = short_df.columns.get_level_values(0)
             short_df.columns = [str(col).lower().replace(' ', '_') for col in short_df.columns]
             
             close = short_df["close"]
@@ -228,7 +240,12 @@ class TechnicalAnalyzer:
                 "score": score,
                 "rsi": round(rsi, 1),
                 "macd_histogram": momentum * 0.1,
+                "macd_line": 0,
+                "signal_line": 0,
                 "bollinger_position": "orta",
+                "bollinger_upper": 0,
+                "bollinger_middle": 0,
+                "bollinger_lower": 0,
                 "sma_short": round(current_price * (1 + momentum/200), 2),
                 "sma_long": round(current_price * 0.98, 2),
                 "momentum_pct": round(momentum, 2),
@@ -237,6 +254,7 @@ class TechnicalAnalyzer:
                 "fibonacci": {
                     "current": round(current_price, 2),
                     "fib_0.236": round(current_price * (1 + (momentum / 500)), 2),
+                    "fib_0.382": round(current_price, 2),
                     "fib_0.618": round(current_price * (1 - (momentum / 500)), 2),
                 },
                 "trend": trend,
@@ -253,13 +271,21 @@ class TechnicalAnalyzer:
                 "score": 50.0,
                 "rsi": 50,
                 "macd_histogram": 0,
+                "macd_line": 0,
+                "signal_line": 0,
                 "bollinger_position": "orta",
+                "bollinger_upper": 0,
+                "bollinger_middle": 0,
+                "bollinger_lower": 0,
                 "sma_short": round(current_price * 0.99, 2),
                 "sma_long": round(current_price * 0.97, 2),
                 "momentum_pct": 0.0,
                 "atr": round(current_price * 0.01, 2),
                 "signals": ["⚪ Minimal veri"],
-                "fibonacci": {"current": round(current_price, 2)},
+                "fibonacci": {
+                    "current": round(current_price, 2),
+                    "fib_0.382": round(current_price, 2),
+                },
                 "trend": "Nötr",
                 "trend_strength": "N/A",
                 "dataframe": None
