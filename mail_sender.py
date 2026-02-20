@@ -52,6 +52,7 @@ def generate_html_body(
     sector_scores: dict = None,
     holiday_alerts: list = None,
     chart_paths: list = None,
+    sector_prediction: dict = None,
 ) -> str:
     """Profesyonel HTML Email Oluştur (Koyu Tema) — Swing Trade Dashboard"""
     
@@ -459,6 +460,57 @@ def generate_html_body(
                 <div class="content">
         """
         
+        # ══════════════════════════════════════════════
+        # SEKTÖR TAHMİNİ BÖLÜMÜ
+        # ══════════════════════════════════════════════
+        if sector_prediction and sector_prediction.get("target_sectors"):
+            target_sectors_list = sector_prediction["target_sectors"]
+            reasoning = sector_prediction.get("reasoning", {})
+
+            medal_icons = ["🥇", "🥈", "🥉"]
+            sector_boxes_html = ""
+            for idx, sec in enumerate(target_sectors_list):
+                medal = medal_icons[idx] if idx < len(medal_icons) else "🎯"
+                sector_boxes_html += f"""
+                        <div style="background:#1a3a2a; border:1px solid #2ea043; border-radius:8px; padding:10px 16px; flex:1; min-width:150px;">
+                            <div style="color:#2ea043; font-size:12px; font-weight:bold;">{medal} {idx+1}. Sektör</div>
+                            <div style="color:#e6edf3; font-size:16px; font-weight:bold; margin-top:4px;">{sec.upper()}</div>
+                        </div>"""
+
+            all_reasons = []
+            for sec in target_sectors_list:
+                for reason in reasoning.get(sec, []):
+                    all_reasons.append(reason)
+
+            reasons_html = ""
+            for reason in all_reasons[:8]:
+                reasons_html += f"<li>{reason}</li>"
+
+            reasons_section_html = ""
+            if reasons_html:
+                reasons_section_html = (
+                    "<div style='margin-top:8px;'>"
+                    "<div style='color:#8b949e; font-size:11px;'>Sebepler:</div>"
+                    f"<ul style='color:#c9d1d9; font-size:12px; margin:4px 0; padding-left:20px;'>{reasons_html}</ul>"
+                    "</div>"
+                )
+
+            html += f"""
+        <div class="section">
+            <div class="section-title">🎯 Sektör Tahmini — Paranın Gittiği Yer</div>
+            <div style="padding: 12px;">
+                <p style="color:#e6edf3; font-size:14px; margin-bottom:10px;">
+                    Makro veriler, emtia hareketleri, haber analizi ve jeopolitik risk değerlendirmesi
+                    sonucunda paranın aşağıdaki sektörlere yöneldiği tahmin edilmektedir:
+                </p>
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+                    {sector_boxes_html}
+                </div>
+                {reasons_section_html}
+            </div>
+        </div>
+        """
+
         # ══════════════════════════════════════════════
         # ABD MAKRO RİSK BÖLÜMÜ
         # ══════════════════════════════════════════════
