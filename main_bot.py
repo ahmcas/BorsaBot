@@ -62,6 +62,128 @@ def print_section(title: str):
     print(f"\n📋 {title}...")
 
 
+def determine_target_sectors(sector_scores, commodity_data, macro_data, geo_risk, supply_demand, top_n=3):
+    """
+    Tüm makro/haber/emtia verilerini birleştirerek paranın hangi sektöre gideceğini tahmin et.
+
+    Skor kaynakları:
+    1. Haber sentiment skorları (sector_scores dict'inden)
+    2. Emtia hareketleri → etkilediği sektörler (config.COMMODITY_RECORD_CONTEXT)
+    3. DXY hareketi → etkilediği sektörler
+    4. Jeopolitik risk → etkilediği sektörler
+    5. Arz-talep trendleri → etkilediği sektörler
+
+    Returns:
+        (top_sectors: list[str], reasoning: dict)
+    """
+    from collections import defaultdict
+
+    sector_total_scores = defaultdict(float)
+    sector_reasons = defaultdict(list)
+
+    # 1. Haber sentiment skorları
+    for sector, score in (sector_scores or {}).items():
+        if sector in ("genel", "geopolitical_risk", "supply_demand_trends"):
+            continue
+        if isinstance(score, (int, float)):
+            sector_total_scores[sector] += score * 2.0  # Haber ağırlığı
+            if score > 0.1:
+                sector_reasons[sector].append(f"📰 Pozitif haber sentiment ({score:.2f})")
+            elif score < -0.1:
+                sector_reasons[sector].append(f"📰 Negatif haber sentiment ({score:.2f})")
+
+    # 2. Emtia hareketleri
+    if commodity_data:
+        for commodity_name, data in commodity_data.items():
+            if isinstance(data, dict) and not data.get("skip"):
+                change = data.get("change_pct", 0) or data.get("monthly_change_pct", 0) or 0
+                ticker = data.get("ticker", "")
+
+                # COMMODITY_RECORD_CONTEXT'ten etkilenen sektörleri al
+                context = config.COMMODITY_RECORD_CONTEXT.get(ticker, {})
+                affected = context.get("affected_sectors", [])
+
+                for sector in affected:
+                    if change > 3:
+                        sector_total_scores[sector] += 0.5
+                        sector_reasons[sector].append(f"📈 {commodity_name} yükselişte (+{change:.1f}%)")
+                    elif change < -3:
+                        sector_total_scores[sector] -= 0.3
+                        sector_reasons[sector].append(f"📉 {commodity_name} düşüşte ({change:.1f}%)")
+
+    # 3. DXY hareketi
+    if macro_data and macro_data.get("dxy") and not macro_data["dxy"].get("skip"):
+        dxy_change = macro_data["dxy"].get("monthly_change_pct", 0)
+        if dxy_change < -2:  # DXY düşüyor → emtia/gelişen piyasa pozitif
+            for s in ["enerji", "madencilik"]:
+                sector_total_scores[s] += 0.4
+                sector_reasons[s].append("💵 DXY düşüyor → emtia pozitif")
+        elif dxy_change > 2:  # DXY yükseliyor → teknoloji/ithalatçı negatif
+            for s in ["teknoloji", "otomotiv"]:
+                sector_total_scores[s] -= 0.3
+                sector_reasons[s].append("💵 DXY yükseliyor → baskı")
+
+    # 4. Jeopolitik risk
+    if geo_risk and isinstance(geo_risk, dict):
+        risk_level = geo_risk.get("risk_level", "Düşük")
+        if risk_level in ("Yüksek", "Kritik"):
+            for s in ["savunma", "enerji"]:
+                sector_total_scores[s] += 0.6
+                sector_reasons[s].append(f"🌍 Jeopolitik risk {risk_level} → savunma/enerji güçlü")
+            for s in ["turizm", "perakende"]:
+                sector_total_scores[s] -= 0.4
+                sector_reasons[s].append(f"🌍 Jeopolitik risk {risk_level} → baskı")
+
+    # 5. Arz-talep trendleri
+    if supply_demand and isinstance(supply_demand, list):
+        for trend in supply_demand:
+            impact = trend.get("impact", "")
+            sectors = trend.get("sectors", [])
+            keyword = trend.get("keyword", "")
+            for s in sectors:
+                if impact == "bullish":
+                    sector_total_scores[s] += 0.5
+                    sector_reasons[s].append(f"📦 {keyword} → bullish")
+                elif impact == "bearish":
+                    sector_total_scores[s] -= 0.4
+                    sector_reasons[s].append(f"📦 {keyword} → bearish")
+
+    # Sıralama ve en iyi sektörleri seç
+    sorted_sectors = sorted(sector_total_scores.items(), key=lambda x: x[1], reverse=True)
+
+    # En az 2, en fazla top_n sektör seç (pozitif skorlu olanlar)
+    top_sectors = []
+    for sector, score in sorted_sectors:
+        if score > 0 and len(top_sectors) < top_n:
+            top_sectors.append(sector)
+
+    # Hiç pozitif sektör yoksa, en az zararlı 2 sektörü al
+    if len(top_sectors) < 2:
+        for sector, score in sorted_sectors:
+            if sector not in top_sectors and len(top_sectors) < 2:
+                top_sectors.append(sector)
+
+    return top_sectors, dict(sector_reasons)
+
+
+def get_stocks_by_sectors(target_sectors: list) -> list:
+    """
+    Hedef sektörlerdeki tüm hisseleri döndür.
+    config.STOCK_SECTORS mapping'den reverse lookup yapar.
+    """
+    stocks = []
+    for ticker, sector in config.STOCK_SECTORS.items():
+        if sector in target_sectors:
+            stocks.append(ticker)
+
+    # İndeks hisseleri her zaman dahil et (piyasa referansı)
+    for ticker, sector in config.STOCK_SECTORS.items():
+        if sector == "indeks" and ticker not in stocks:
+            stocks.append(ticker)
+
+    return stocks
+
+
 def run_analysis(quick: bool = False):
     """Ana analiz fonksiyonu"""
     
@@ -70,17 +192,88 @@ def run_analysis(quick: bool = False):
         
         start_time = datetime.now()
         
-        # Analiz edilecek hisseler
-        stocks_to_analyze = QUICK_STOCKS if quick else config.ALL_STOCKS
-        
         mode = f"⚡ QUICK MODE ({len(QUICK_STOCKS)} hisse)" if quick else f"📊 NORMAL MODE ({len(config.ALL_STOCKS)} hisse)"
         print(f"\n{mode}")
         print(f"Başlangıç: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        
+
         # ═══════════════════════════════════════════════════════════
-        # ADIM 1: Teknik Analiz
+        # ADIM 1: SEKTÖR TAHMİNİ (Makro + Haber + Emtia)
         # ═══════════════════════════════════════════════════════════
-        print_section("ADIM 1: Teknik Analiz")
+        target_sectors = []
+        sector_reasoning = {}
+        sector_scores = {}
+        commodity_data = None
+        macro_data = None
+        holiday_alerts = []
+
+        if not quick:
+            print_section("ADIM 1: Sektör Tahmini (Makro + Haber + Emtia)")
+
+            # 1a. Haber analizi
+            try:
+                sector_scores = analyze_news(days_back=1)
+                print(f"✅ Haber analizi tamamlandı")
+            except Exception as e:
+                print(f"⚠️  Haber analizi yapılamadı: {e}")
+                sector_scores = {}
+
+            # 1b. Emtia analizi
+            try:
+                commodity_data = CommodityAnalyzer.analyze_all_commodities()
+                print(f"✅ Emtia analizi tamamlandı")
+            except Exception as e:
+                print(f"⚠️  Emtia analizi yapılamadı: {e}")
+
+            # 1c. Makro analiz
+            try:
+                dxy_result = MacroAnalyzer.analyze_dxy()
+                debt_result = MacroAnalyzer.get_us_debt_analysis()
+                geo_risk = sector_scores.get("geopolitical_risk", {})
+                supply_demand = sector_scores.get("supply_demand_trends", [])
+                macro_data = {
+                    "us_debt": debt_result,
+                    "dxy": dxy_result,
+                    "geopolitical_risk": geo_risk,
+                    "supply_demand_trends": supply_demand,
+                }
+                holiday_alerts = MacroAnalyzer.check_upcoming_holidays(days_ahead=14)
+                print(f"✅ Makro analiz tamamlandı")
+            except Exception as e:
+                print(f"⚠️  Makro analiz yapılamadı: {e}")
+                geo_risk = {}
+                supply_demand = []
+
+            # ═══════════════════════════════════════════════════════════
+            # ADIM 2: HEDEF SEKTÖR BELİRLE
+            # ═══════════════════════════════════════════════════════════
+            print_section("ADIM 2: Hedef Sektör Belirleme")
+
+            try:
+                target_sectors, sector_reasoning = determine_target_sectors(
+                    sector_scores=sector_scores,
+                    commodity_data=commodity_data,
+                    macro_data=macro_data,
+                    geo_risk=sector_scores.get("geopolitical_risk", {}),
+                    supply_demand=sector_scores.get("supply_demand_trends", []),
+                )
+                target_stocks = get_stocks_by_sectors(target_sectors)
+                print(f"🎯 Hedef sektörler: {target_sectors}")
+                print(f"📋 Analiz edilecek hisse sayısı: {len(target_stocks)} ({len(config.ALL_STOCKS)} yerine)")
+            except Exception as e:
+                print(f"⚠️  Sektör belirleme hatası: {e} — tüm hisseler analiz edilecek")
+                traceback.print_exc()
+                target_sectors = []
+                sector_reasoning = {}
+                target_stocks = config.ALL_STOCKS
+
+            stocks_to_analyze = target_stocks if target_stocks else config.ALL_STOCKS
+        else:
+            stocks_to_analyze = QUICK_STOCKS
+
+        # ═══════════════════════════════════════════════════════════
+        # ADIM 3: Teknik Analiz (Hedef Sektör hisseleri)
+        # ═══════════════════════════════════════════════════════════
+        print_section("ADIM 3: Teknik Analiz (Hedef Sektör)" if not quick else "ADIM 1: Teknik Analiz (Quick Mode)")
         
         try:
             technical_results = analyze_all_stocks(stocks_to_analyze)
@@ -88,6 +281,11 @@ def run_analysis(quick: bool = False):
             
             if successful_tech == 0:
                 print(f"⚠️  Hiçbir hisse analiz edilmedi, fallback aktive ediliyor...")
+                # Fallback: tüm hisseleri dene
+                if not quick and stocks_to_analyze != config.ALL_STOCKS:
+                    print(f"   Fallback: Tüm hisseler analiz ediliyor...")
+                    technical_results = analyze_all_stocks(config.ALL_STOCKS)
+                    successful_tech = len([r for r in technical_results if not r.get('skip')])
             else:
                 print(f"✅ {successful_tech}/{len(stocks_to_analyze)} hisse analiz edildi")
         
@@ -97,35 +295,30 @@ def run_analysis(quick: bool = False):
             successful_tech = 0
         
         # ═══════════════════════════════════════════════════════════
-        # ADIM 2: Haber Analizi
+        # ADIM 4: Skor Hesaplama ve Seçim
         # ═══════════════════════════════════════════════════════════
-        print_section("ADIM 2: Haber Analizi")
-        
-        try:
-            sector_scores = analyze_news(days_back=1)
-            print(f"✅ Haber analizi tamamlandı")
-        except Exception as e:
-            print(f"⚠️  Haber analizi yapılamadı: {e}")
-            sector_scores = {}
-        
-        # ═══════════════════════════════════════════════════════════
-        # ADIM 3: Skor Hesaplama ve Seçim
-        # ═══════════════════════════════════════════════════════════
-        print_section("ADIM 3: Skor Hesaplama")
+        print_section("ADIM 4: Skor Hesaplama")
         
         try:
             selected = select_top_stocks(technical_results, sector_scores, max_count=config.MAX_RECOMMENDATIONS)
             
             if len(selected) == 0:
-                print(f"⚠️  Hiçbir hisse seçilmedi!")
-                print(f"   Fallback: İlk 1-2 hisse manuel olarak seçiliyor...")
-                
-                # Fallback: En azından birini seç
-                if technical_results:
-                    valid = [r for r in technical_results if not r.get('skip')]
-                    if valid:
-                        selected = valid[:1]
-                        print(f"   ✅ Fallback seçim: {selected[0].get('ticker')}")
+                print(f"⚠️  Hedef sektörden hisse seçilemedi!")
+                # Fallback: tüm hisselerden seç
+                if not quick and target_sectors:
+                    print(f"   Fallback: Tüm hisseler arasından seçim yapılıyor...")
+                    all_results = analyze_all_stocks(config.ALL_STOCKS)
+                    selected = select_top_stocks(all_results, sector_scores, max_count=config.MAX_RECOMMENDATIONS)
+                    technical_results = all_results
+                    successful_tech = len([r for r in all_results if not r.get('skip')])
+
+                if len(selected) == 0:
+                    print(f"   Fallback: İlk 1-2 hisse manuel olarak seçiliyor...")
+                    if technical_results:
+                        valid = [r for r in technical_results if not r.get('skip')]
+                        if valid:
+                            selected = valid[:1]
+                            print(f"   ✅ Fallback seçim: {selected[0].get('ticker')}")
             else:
                 print(f"✅ {len(selected)} hisse seçildi")
                 for i, stock in enumerate(selected, 1):
@@ -136,11 +329,7 @@ def run_analysis(quick: bool = False):
             traceback.print_exc()
             selected = []
         
-        # ═══════════════════════════════════════════════════════════
-        # ADIM 4: Öneriler Üretme
-        # ═══════════════════════════════════════════════════════════
-        print_section("ADIM 4: Öneriler Üretiliyor")
-        
+        # Öneriler üret
         try:
             recommendations = generate_recommendation_text(selected, sector_scores, candidates=selected)
             rec_count = len(recommendations.get("recommendations", []))
@@ -149,37 +338,29 @@ def run_analysis(quick: bool = False):
             print(f"❌ Öneri oluşturma hatası: {e}")
             traceback.print_exc()
             recommendations = {"recommendations": [], "total_selected": 0}
-        
-        # ═══════════════════════════════════════════════════════════
-        # ADIM 4.5: Emtia & Makro Analiz
-        # ═══════════════════════════════════════════════════════════
-        print_section("ADIM 4.5: Emtia & Makro Analiz")
-        
-        commodity_data = None
-        macro_data = None
-        holiday_alerts = []
-        
-        try:
-            commodity_data = CommodityAnalyzer.analyze_all_commodities()
-            print(f"✅ Emtia analizi tamamlandı")
-        except Exception as e:
-            print(f"⚠️  Emtia analizi yapılamadı: {e}")
-        
-        try:
-            dxy_result = MacroAnalyzer.analyze_dxy()
-            debt_result = MacroAnalyzer.get_us_debt_analysis()
-            geo_risk = sector_scores.get("geopolitical_risk", {})
-            supply_demand = sector_scores.get("supply_demand_trends", [])
-            macro_data = {
-                "us_debt": debt_result,
-                "dxy": dxy_result,
-                "geopolitical_risk": geo_risk,
-                "supply_demand_trends": supply_demand,
-            }
-            holiday_alerts = MacroAnalyzer.check_upcoming_holidays(days_ahead=14)
-            print(f"✅ Makro analiz tamamlandı")
-        except Exception as e:
-            print(f"⚠️  Makro analiz yapılamadı: {e}")
+
+        # Quick mode'da emtia/makro analizi burada yap (sektör tahminine gerek yok)
+        if quick:
+            try:
+                sector_scores = analyze_news(days_back=1)
+            except Exception as e:
+                print(f"⚠️  Haber analizi yapılamadı: {e}")
+            try:
+                commodity_data = CommodityAnalyzer.analyze_all_commodities()
+            except Exception as e:
+                print(f"⚠️  Emtia analizi yapılamadı: {e}")
+            try:
+                dxy_result = MacroAnalyzer.analyze_dxy()
+                debt_result = MacroAnalyzer.get_us_debt_analysis()
+                macro_data = {
+                    "us_debt": debt_result,
+                    "dxy": dxy_result,
+                    "geopolitical_risk": sector_scores.get("geopolitical_risk", {}),
+                    "supply_demand_trends": sector_scores.get("supply_demand_trends", []),
+                }
+                holiday_alerts = MacroAnalyzer.check_upcoming_holidays(days_ahead=14)
+            except Exception as e:
+                print(f"⚠️  Makro analiz yapılamadı: {e}")
         
         # ═══════════════════════════════════════════════════════════
         # ADIM 5: Email Hazırlama ve Gönderme
@@ -194,6 +375,10 @@ def run_analysis(quick: bool = False):
                 macro_data=macro_data,
                 sector_scores=sector_scores,
                 holiday_alerts=holiday_alerts,
+                sector_prediction={
+                    "target_sectors": target_sectors,
+                    "reasoning": sector_reasoning,
+                } if target_sectors else None,
             )
             print("✅ Email HTML oluşturuldu")
             
@@ -236,6 +421,8 @@ def run_analysis(quick: bool = False):
         print_header("ANALİZ TAMAMLANDI")
         print(f"\n📊 Özet:")
         print(f"   ✅ Teknik analiz: {successful_tech} hisse")
+        if target_sectors:
+            print(f"   🎯 Hedef sektörler: {', '.join(target_sectors)}")
         print(f"   ✅ Seçilen hisseler: {len(selected)}")
         print(f"   ✅ Öneriler: {len(recommendations.get('recommendations', []))}")
         print(f"   ✅ Süre: {duration:.1f} saniye")
