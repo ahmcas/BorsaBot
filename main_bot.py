@@ -302,6 +302,39 @@ def run_analysis(quick: bool = False):
         try:
             selected = select_top_stocks(technical_results, sector_scores, max_count=config.MAX_RECOMMENDATIONS)
             
+            # Her seçilen hisseye kaynak havuzu etiketini ekle
+            for stock in selected:
+                stock["source_pool"] = "🎯 Hedef Sektör"
+
+            # Yeterli hisse seçilemediyse kalan havuzdan tamamla
+            if 0 < len(selected) < config.MAX_RECOMMENDATIONS:
+                shortage = config.MAX_RECOMMENDATIONS - len(selected)
+                already_analyzed_tickers = {r.get("ticker") for r in technical_results if r.get("ticker")}
+                remaining_stocks = [t for t in config.ALL_STOCKS if t not in already_analyzed_tickers]
+
+                print(f"⚠️  Hedef sektörden sadece {len(selected)} hisse seçildi ({config.MAX_RECOMMENDATIONS} gerekli)")
+                print(f"🔄 Kalan hisseler analiz ediliyor (eksik: {shortage})...")
+
+                if remaining_stocks:
+                    remaining_results = analyze_all_stocks(remaining_stocks)
+                    remaining_selected = select_top_stocks(remaining_results, sector_scores, max_count=shortage)
+                    for stock in remaining_selected:
+                        stock["source_pool"] = "🌍 Genel Havuz"
+                    print(f"✅ Kalan hisselerden {len(remaining_selected)} hisse daha seçildi")
+                    # Birleştir (duplicate olmadan)
+                    existing_tickers = {s.get("ticker") for s in selected if s.get("ticker")}
+                    for s in remaining_selected:
+                        if s.get("ticker") not in existing_tickers:
+                            selected.append(s)
+                            existing_tickers.add(s.get("ticker"))
+                    # technical_results'ı da birleştir
+                    existing_tech_tickers = {r.get("ticker") for r in technical_results if r.get("ticker")}
+                    for r in remaining_results:
+                        if r.get("ticker") not in existing_tech_tickers:
+                            technical_results.append(r)
+                            existing_tech_tickers.add(r.get("ticker"))
+                    print(f"✅ Toplam: {len(selected)} hisse")
+
             if len(selected) == 0:
                 print(f"⚠️  Hedef sektörden hisse seçilemedi!")
                 # Fallback: tüm hisselerden seç
@@ -309,6 +342,8 @@ def run_analysis(quick: bool = False):
                     print(f"   Fallback: Tüm hisseler arasından seçim yapılıyor...")
                     all_results = analyze_all_stocks(config.ALL_STOCKS)
                     selected = select_top_stocks(all_results, sector_scores, max_count=config.MAX_RECOMMENDATIONS)
+                    for stock in selected:
+                        stock["source_pool"] = "🌍 Genel Havuz"
                     technical_results = all_results
                     successful_tech = len([r for r in all_results if not r.get('skip')])
 
@@ -322,7 +357,10 @@ def run_analysis(quick: bool = False):
             else:
                 print(f"✅ {len(selected)} hisse seçildi")
                 for i, stock in enumerate(selected, 1):
-                    print(f"   {i}. {stock.get('ticker', '?'):10s} - Skor: {stock.get('score', 0):6.1f}")
+                    pool_label = stock.get("source_pool", "")
+                    rr = stock.get("reward_risk_ratio", 0)
+                    pool_str = f" | {pool_label}" if pool_label else ""
+                    print(f"   {i}. {stock.get('ticker', '?'):10s} - Skor: {stock.get('score', 0):6.1f} | R/R: {rr:.2f}{pool_str}")
         
         except Exception as e:
             print(f"❌ Skor hesaplama hatası: {e}")
