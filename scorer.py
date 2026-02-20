@@ -236,6 +236,7 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict, can
                 "reward_risk_ratio": round(rr_ratio, 2),
                 "timeframe": "~1 Ay (21 İş Günü)",
                 "breakout": stock.get("breakout", {}),
+                "source_pool": stock.get("source_pool", ""),
             }
             recommendations["recommendations"].append(rec)
         

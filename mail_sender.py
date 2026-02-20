@@ -834,6 +834,7 @@ def generate_html_body(
                 score = rec.get('score', 0)
                 rating = rec.get('rating', '❓')
                 price = rec.get('price', 0)
+                source_pool = rec.get('source_pool', '')
                 
                 currency = "₺" if ticker.endswith(".IS") else "$"
                 
@@ -900,6 +901,7 @@ def generate_html_body(
                             <div>
                                 <div class="stock-rank">#{i}</div>
                                 <div class="ticker">{ticker}</div>
+                                {f'<div style="display:inline-block; margin-top:4px; padding:2px 8px; background:#21262d; border:1px solid #30363d; border-radius:10px; font-size:11px; color:#8b949e;">{source_pool}</div>' if source_pool else ''}
                                 <div class="sector">{sector}</div>
                             </div>
                             <div>
