@@ -1,6 +1,56 @@
 # scorer.py — Skor & Seçim (v6 - SWING TRADE UPDATE)
 import config
 
+
+class ScoreCalculator:
+    @staticmethod
+    def calculate_composite_score(technical_score, sector_sentiment):
+        if technical_score is None:
+            technical_score = 50.0
+        if sector_sentiment is None:
+            sector_sentiment = 0.0
+        normalized_sentiment = (sector_sentiment + 1) / 2 * 100
+        composite = technical_score * 0.6 + normalized_sentiment * 0.4
+        return max(0.0, min(100.0, composite))
+
+    @staticmethod
+    def calculate_reward_risk(current_price, support, resistance):
+        if not current_price or current_price <= 0:
+            return {"reward_pct": 0.0, "risk_pct": 0.0, "ratio": 0}
+        reward_pct = (resistance - current_price) / current_price * 100
+        risk_pct = (current_price - support) / current_price * 100
+        ratio = reward_pct / risk_pct if risk_pct != 0 else 0
+        return {"reward_pct": reward_pct, "risk_pct": risk_pct, "ratio": ratio}
+
+    @staticmethod
+    def calculate_confidence(score):
+        if score >= 80:
+            return "Çok Yüksek"
+        elif score >= 70:
+            return "Yüksek"
+        elif score >= 60:
+            return "İyi"
+        elif score >= 50:
+            return "Orta"
+        elif score >= 40:
+            return "Düşük"
+        else:
+            return "Çok Düşük"
+
+
+def determine_rating(score):
+    if score >= 80:
+        return "💎 GÜÇLÜ AL"
+    elif score >= 66:
+        return "🟢 AL"
+    elif score >= 50:
+        return "🟡 TUT"
+    elif score >= 35:
+        return "🟠 DİKKATLİ OL"
+    else:
+        return "🔴 SAT"
+
+
 def select_top_stocks(technical_results: list, sector_scores: dict, max_count: int = None) -> list:
     if max_count is None:
         max_count = config.MAX_RECOMMENDATIONS
