@@ -71,16 +71,32 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         candidate = {
             "ticker": ticker,
             "score": composite_score,
-            # ... diğer alanlar aynen
+            "current_price": current_price,
+            "sector": config.STOCK_SECTORS.get(ticker, "Teknoloji" if "." not in ticker else "Finans"),
             "support": support,
             "resistance": resistance,
             "reward_pct": rr["reward_pct"],
             "risk_pct": rr["risk_pct"],
             "reward_risk_ratio": rr["ratio"],
             "dataframe": result.get("dataframe"),
-            "sector": config.STOCK_SECTORS.get(ticker, "Teknoloji" if "." not in ticker else "Finans"),
-            # Copilot: source_pool badge alanı ekleniyor! (main_bot.py dolduracak)
             "source_pool": result.get("source_pool", ""),
+            "rsi": result.get("rsi"),
+            "macd_histogram": result.get("macd_histogram"),
+            "macd_line": result.get("macd_line"),
+            "signal_line": result.get("signal_line"),
+            "bollinger_position": result.get("bollinger_position"),
+            "bollinger_upper": result.get("bollinger_upper"),
+            "bollinger_middle": result.get("bollinger_middle"),
+            "bollinger_lower": result.get("bollinger_lower"),
+            "sma_short": result.get("sma_short"),
+            "sma_long": result.get("sma_long"),
+            "momentum_pct": result.get("momentum_pct"),
+            "atr": result.get("atr"),
+            "signals": result.get("signals", []),
+            "fibonacci": fibonacci,
+            "trend": result.get("trend"),
+            "trend_strength": result.get("trend_strength"),
+            "breakout": result.get("breakout", {}),
         }
         candidates.append(candidate)
     # ... filtre/puan sıralama mevcut sistem aynen devam
@@ -101,13 +117,48 @@ def generate_recommendation_text(selected_stocks: list, sector_scores: dict, can
             "score": stock.get("score", 0),
             "rating": determine_rating(stock.get("score", 0)),
             "price": current_price,
+            "source_pool": stock.get("source_pool", ""),
+            "rsi": stock.get("rsi"),
+            "macd_histogram": stock.get("macd_histogram"),
+            "macd_line": stock.get("macd_line"),
+            "signal_line": stock.get("signal_line"),
+            "bollinger_position": stock.get("bollinger_position"),
+            "bollinger_upper": stock.get("bollinger_upper"),
+            "bollinger_middle": stock.get("bollinger_middle"),
+            "bollinger_lower": stock.get("bollinger_lower"),
+            "sma_short": stock.get("sma_short"),
+            "sma_long": stock.get("sma_long"),
             "momentum_pct": stock.get("momentum_pct", 0),
+            "atr": stock.get("atr"),
+            "signals": stock.get("signals", []),
+            "fibonacci": stock.get("fibonacci", {}),
+            "trend": stock.get("trend"),
+            "trend_strength": stock.get("trend_strength"),
+            "breakout": stock.get("breakout", {}),
             "support": support,
             "resistance": resistance,
+            "reward_pct": stock.get("reward_pct", 0),
+            "risk_pct": stock.get("risk_pct", 0),
             "reward_risk_ratio": round(rr_ratio, 2),
-            "breakout": stock.get("breakout", {}),
-            # Copilot: source_pool badge ekleniyor!
-            "source_pool": stock.get("source_pool", ""),
+            "target_price": resistance,
+            "stop_loss": support,
+            "expected_gain_pct": stock.get("reward_pct", 0),
+            "max_risk_pct": stock.get("risk_pct", 0),
+            "confidence": ScoreCalculator.calculate_confidence(stock.get("score", 0)),
+            "timeframe": "~1 Ay (21 İş Günü)",
         }
         recommendations["recommendations"].append(rec)
+    bullish_count = sum(1 for s in selected_stocks if s.get("score", 0) >= 60)
+    bearish_count = sum(1 for s in selected_stocks if s.get("score", 0) < 40)
+    neutral_count = len(selected_stocks) - bullish_count - bearish_count
+    scores = [s.get("score", 0) for s in selected_stocks]
+    avg_score = sum(scores) / len(scores) if scores else 0.0
+    total_analyzed = len(candidates) if candidates is not None else len(selected_stocks)
+    recommendations["market_summary"] = {
+        "bullish_count": bullish_count,
+        "bearish_count": bearish_count,
+        "neutral_count": neutral_count,
+        "avg_score": round(avg_score, 2),
+        "total_analyzed": total_analyzed,
+    }
     return recommendations
