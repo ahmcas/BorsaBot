@@ -495,14 +495,79 @@ def analyze_news(days_back: int = 1) -> dict:
     # ADIM 4: Jeopolitik risk ve arz-talep analizi
     try:
         from macro_analyzer import MacroAnalyzer
+        from global_market_analyzer import GeopoliticalAnalyzer, GeopoliticalNewsIntegration
         all_articles = []
-        for sector in list(NewsAnalyzer.PRIMARY_SECTORS.keys())[:2]:
+        for sector in list(NewsAnalyzer.PRIMARY_SECTORS.keys()):
             cache_key = f"sector_{sector}_{days_back}"
             cached = NewsAnalyzer._cache.get(cache_key)
             if cached and cached.get("articles"):
                 all_articles.extend(cached["articles"])
-        
-        sector_scores["geopolitical_risk"] = MacroAnalyzer.analyze_geopolitical_risk(all_articles)
+
+        # Jeopolitik haberleri doğrudan API'den çek
+        try:
+            geo_news = GeopoliticalNewsIntegration.get_geopolitical_news()
+            if geo_news:
+                for news_item in geo_news:
+                    all_articles.append({
+                        "title": news_item.get("title", ""),
+                        "description": news_item.get("description", ""),
+                        "source": news_item.get("source", ""),
+                    })
+        except Exception:
+            pass
+
+        # Fallback: haber gelmezse GeopoliticalAnalyzer statik verilerinden makale oluştur
+        if not all_articles:
+            try:
+                active_events = GeopoliticalAnalyzer.get_current_geopolitical_status()
+                if active_events:
+                    for event in active_events:
+                        all_articles.append({
+                            "title": event.get("event", ""),
+                            "description": " ".join(event.get("impact", [])),
+                        })
+            except Exception:
+                pass
+
+        geo_result = MacroAnalyzer.analyze_geopolitical_risk(all_articles)
+
+        # Aktif jeopolitik olayları risk listesine ve etkilenen sektörlere ekle
+        try:
+            active_events = GeopoliticalAnalyzer.get_current_geopolitical_status()
+            if active_events:
+                affected_sectors = set(geo_result.get("affected_sectors", []))
+                sector_keywords = {
+                    "enerji": ["enerji", "petrol", "oil", "gaz"],
+                    "savunma": ["savunma", "military", "defence"],
+                    "teknoloji": ["teknoloji", "tech"],
+                    "madencilik": ["altın", "gold"],
+                    "turizm": ["turizm", "travel"],
+                }
+                for event in active_events:
+                    event_name = event.get("event", "")
+                    if event_name and event_name not in geo_result.get("risks", []):
+                        geo_result["risks"].append(event_name)
+                    for impact in event.get("impact", []):
+                        impact_lower = impact.lower()
+                        for sector_name, keywords in sector_keywords.items():
+                            if any(kw in impact_lower for kw in keywords):
+                                affected_sectors.add(sector_name)
+
+                geo_result["affected_sectors"] = list(affected_sectors)
+                risk_count = len(geo_result.get("risks", []))
+                geo_result["risk_count"] = risk_count
+                if risk_count == 0:
+                    geo_result["risk_level"] = "Düşük"
+                elif risk_count <= 2:
+                    geo_result["risk_level"] = "Orta"
+                elif risk_count <= 5:
+                    geo_result["risk_level"] = "Yüksek"
+                else:
+                    geo_result["risk_level"] = "Kritik"
+        except Exception:
+            pass
+
+        sector_scores["geopolitical_risk"] = geo_result
         sector_scores["supply_demand_trends"] = MacroAnalyzer.detect_supply_demand_trends(all_articles)
     except Exception:
         sector_scores["geopolitical_risk"] = {"risk_level": "Bilinmiyor", "risks": [], "affected_sectors": []}
