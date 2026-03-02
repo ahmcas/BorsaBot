@@ -19,7 +19,16 @@ class ScoreCalculator:
             return {"reward_pct": 0.0, "risk_pct": 0.0, "ratio": 0}
         reward_pct = (resistance - current_price) / current_price * 100
         risk_pct = (current_price - support) / current_price * 100
-        ratio = reward_pct / risk_pct if risk_pct != 0 else 0
+
+        # Negatif koruma: destek fiyattan yukarıdaysa risk anlamsız
+        if risk_pct <= 0:
+            return {"reward_pct": max(reward_pct, 0.0), "risk_pct": 0.0, "ratio": 0}
+
+        # Negatif reward koruma: direnç fiyattan aşağıdaysa kazanç anlamsız
+        if reward_pct <= 0:
+            return {"reward_pct": 0.0, "risk_pct": risk_pct, "ratio": 0}
+
+        ratio = reward_pct / risk_pct
         return {"reward_pct": reward_pct, "risk_pct": risk_pct, "ratio": ratio}
 
     @staticmethod
@@ -67,6 +76,32 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         current_price = result.get("current_price", 0)
         support = fibonacci.get("fib_0.618", current_price * 0.93)
         resistance = fibonacci.get("fib_0.236", current_price * 1.08)
+
+        # Fiyat Fibonacci desteğinin altına düştüyse → gerçekçi destek hesapla
+        if support >= current_price and current_price > 0:
+            fib_786 = fibonacci.get("fib_0.786", 0)
+            fib_100 = fibonacci.get("fib_1.0", 0)
+
+            if fib_786 is not None and fib_786 < current_price:
+                support = fib_786
+            elif fib_100 is not None and fib_100 < current_price:
+                support = fib_100
+            else:
+                bollinger_lower = result.get("bollinger_lower", 0)
+                atr = result.get("atr", current_price * 0.02)
+
+                if bollinger_lower is not None and 0 < bollinger_lower < current_price:
+                    support = bollinger_lower
+                else:
+                    support = current_price - (atr * 1.5)
+
+                min_support = current_price * 0.90
+                max_support = current_price * 0.97
+                support = max(min_support, min(support, max_support))
+
+        # Direnç fiyatın altındaysa düzelt
+        if resistance <= current_price and current_price > 0:
+            resistance = current_price * 1.08
         rr = ScoreCalculator.calculate_reward_risk(current_price, support, resistance)
         candidate = {
             "ticker": ticker,
