@@ -60,6 +60,56 @@ def determine_rating(score):
         return "🔴 SAT"
 
 
+def find_strongest_level(levels, current_price, direction="support", tolerance=0.02):
+    """
+    Confluence bazlı en güçlü destek veya direnç seviyesini bul.
+
+    - levels: [{"price": float, "source": str}, ...]
+    - direction: "support" (fiyat altı) veya "resistance" (fiyat üstü)
+    - tolerance: kümeleme toleransı (0.02 = %2)
+    """
+    if direction == "support":
+        candidates = [l for l in levels if l["price"] < current_price and l["price"] > 0]
+    else:
+        candidates = [l for l in levels if l["price"] > current_price]
+
+    if not candidates:
+        return None
+
+    candidates.sort(key=lambda x: abs(x["price"] - current_price))
+
+    clusters = []
+    used = set()
+
+    for i, candidate in enumerate(candidates):
+        if i in used:
+            continue
+        cluster = [candidate]
+        used.add(i)
+
+        for j, other in enumerate(candidates):
+            if j in used:
+                continue
+            if abs(candidate["price"] - other["price"]) / candidate["price"] <= tolerance:
+                cluster.append(other)
+                used.add(j)
+
+        avg_price = sum(c["price"] for c in cluster) / len(cluster)
+        clusters.append({
+            "price": round(avg_price, 2),
+            "strength": len(cluster),
+            "sources": [c["source"] for c in cluster],
+            "distance": abs(avg_price - current_price) / current_price,
+        })
+
+    if not clusters:
+        return None
+
+    clusters.sort(key=lambda x: (-x["strength"], x["distance"]))
+
+    return clusters[0]
+
+
 def select_top_stocks(technical_results: list, sector_scores: dict, max_count: int = None) -> list:
     if max_count is None:
         max_count = config.MAX_RECOMMENDATIONS
@@ -74,33 +124,45 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         composite_score = ScoreCalculator.calculate_composite_score(technical_score, sector_sentiment)
         fibonacci = result.get("fibonacci", {})
         current_price = result.get("current_price", 0)
-        support = fibonacci.get("fib_0.618", current_price * 0.93)
-        resistance = fibonacci.get("fib_0.236", current_price * 1.08)
 
-        # Fiyat Fibonacci desteğinin altına düştüyse → gerçekçi destek hesapla
-        if support >= current_price and current_price > 0:
-            fib_786 = fibonacci.get("fib_0.786", 0)
-            fib_100 = fibonacci.get("fib_1.0", 0)
+        # Tüm teknik seviyeleri topla
+        levels = []
+        for key in ["fib_0.236", "fib_0.382", "fib_0.618", "fib_0.786", "fib_1.0"]:
+            val = fibonacci.get(key, 0)
+            if val and val > 0:
+                levels.append({"price": val, "source": f"Fibonacci {key}"})
 
-            if fib_786 is not None and fib_786 < current_price:
-                support = fib_786
-            elif fib_100 is not None and fib_100 < current_price:
-                support = fib_100
-            else:
-                bollinger_lower = result.get("bollinger_lower", 0)
-                atr = result.get("atr", current_price * 0.02)
+        sma_short_val = result.get("sma_short", 0)
+        sma_long_val = result.get("sma_long", 0)
+        if sma_short_val and sma_short_val > 0:
+            levels.append({"price": sma_short_val, "source": "SMA Kısa"})
+        if sma_long_val and sma_long_val > 0:
+            levels.append({"price": sma_long_val, "source": "SMA Uzun"})
 
-                if bollinger_lower is not None and 0 < bollinger_lower < current_price:
-                    support = bollinger_lower
-                else:
-                    support = current_price - (atr * 1.5)
+        bollinger_upper_val = result.get("bollinger_upper", 0)
+        bollinger_middle_val = result.get("bollinger_middle", 0)
+        bollinger_lower_val = result.get("bollinger_lower", 0)
+        if bollinger_upper_val and bollinger_upper_val > 0:
+            levels.append({"price": bollinger_upper_val, "source": "Bollinger Üst"})
+        if bollinger_middle_val and bollinger_middle_val > 0:
+            levels.append({"price": bollinger_middle_val, "source": "Bollinger Orta"})
+        if bollinger_lower_val and bollinger_lower_val > 0:
+            levels.append({"price": bollinger_lower_val, "source": "Bollinger Alt"})
 
-                min_support = current_price * 0.90
-                max_support = current_price * 0.97
-                support = max(min_support, min(support, max_support))
+        # Confluence bazlı destek seç
+        support_cluster = find_strongest_level(levels, current_price, direction="support")
+        if support_cluster:
+            support = support_cluster["price"]
+        else:
+            atr = result.get("atr", current_price * 0.02)
+            support = current_price - (atr * 1.5)
+            support = max(current_price * 0.90, min(support, current_price * 0.97))
 
-        # Direnç fiyatın altındaysa düzelt
-        if resistance <= current_price and current_price > 0:
+        # Confluence bazlı direnç seç
+        resistance_cluster = find_strongest_level(levels, current_price, direction="resistance")
+        if resistance_cluster:
+            resistance = resistance_cluster["price"]
+        else:
             resistance = current_price * 1.08
         rr = ScoreCalculator.calculate_reward_risk(current_price, support, resistance)
         candidate = {

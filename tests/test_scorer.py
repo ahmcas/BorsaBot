@@ -8,7 +8,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import unittest
-from scorer import ScoreCalculator, select_top_stocks, generate_recommendation_text, determine_rating
+from scorer import ScoreCalculator, select_top_stocks, generate_recommendation_text, determine_rating, find_strongest_level
 
 
 class TestScoreCalculator(unittest.TestCase):
@@ -239,6 +239,90 @@ class TestDetermineRating(unittest.TestCase):
 
     def test_mid_score_rating(self):
         self.assertIn("TUT", determine_rating(65))
+
+
+class TestFindStrongestLevel(unittest.TestCase):
+    """find_strongest_level() fonksiyon testleri"""
+
+    def test_returns_none_when_no_candidates(self):
+        """Uygun seviye yoksa None döndürmeli"""
+        # Tüm seviyeler fiyatın üstünde → destek yok
+        levels = [{"price": 110.0, "source": "A"}, {"price": 120.0, "source": "B"}]
+        result = find_strongest_level(levels, 100.0, direction="support")
+        self.assertIsNone(result)
+
+    def test_returns_none_for_empty_levels(self):
+        """Boş levels listesinde None döndürmeli"""
+        result = find_strongest_level([], 100.0, direction="support")
+        self.assertIsNone(result)
+
+    def test_single_support_returned(self):
+        """Tek destekte o seviye dönmeli"""
+        levels = [{"price": 90.0, "source": "Fibonacci fib_0.618"}]
+        result = find_strongest_level(levels, 100.0, direction="support")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result["price"], 90.0, places=1)
+        self.assertEqual(result["strength"], 1)
+
+    def test_single_resistance_returned(self):
+        """Tek dirençte o seviye dönmeli"""
+        levels = [{"price": 110.0, "source": "Fibonacci fib_0.236"}]
+        result = find_strongest_level(levels, 100.0, direction="resistance")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result["price"], 110.0, places=1)
+
+    def test_confluence_cluster_chosen_over_single(self):
+        """Birden fazla gösterge buluşan küme, tek göstergeli kümeden önce gelmeli"""
+        # 93 ve 94 → aynı küme (±%2 içinde), 98 → tek başına
+        levels = [
+            {"price": 93.0, "source": "Fibonacci fib_0.618"},
+            {"price": 94.0, "source": "Bollinger Alt"},
+            {"price": 98.0, "source": "SMA Kısa"},
+        ]
+        result = find_strongest_level(levels, 100.0, direction="support")
+        self.assertIsNotNone(result)
+        self.assertEqual(result["strength"], 2)
+        # Ortalama fiyat ~93.5
+        self.assertAlmostEqual(result["price"], 93.5, places=1)
+
+    def test_closer_cluster_chosen_when_equal_strength(self):
+        """Aynı güçte iki küme varsa fiyata daha yakın olan seçilmeli"""
+        levels = [
+            {"price": 96.0, "source": "A"},  # closer
+            {"price": 90.0, "source": "B"},  # farther
+        ]
+        result = find_strongest_level(levels, 100.0, direction="support")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result["price"], 96.0, places=1)
+
+    def test_direction_resistance_filters_above_price(self):
+        """Direnç seçiminde yalnızca fiyat üstündeki seviyeler değerlendirilmeli"""
+        levels = [
+            {"price": 90.0, "source": "Destek"},
+            {"price": 108.0, "source": "Direnç"},
+        ]
+        result = find_strongest_level(levels, 100.0, direction="resistance")
+        self.assertIsNotNone(result)
+        self.assertAlmostEqual(result["price"], 108.0, places=1)
+
+    def test_result_has_required_keys(self):
+        """Sonuç dict'inde price, strength, sources, distance anahtarları olmalı"""
+        levels = [{"price": 93.0, "source": "Fibonacci fib_0.618"}]
+        result = find_strongest_level(levels, 100.0, direction="support")
+        for key in ["price", "strength", "sources", "distance"]:
+            self.assertIn(key, result)
+
+    def test_tolerance_grouping(self):
+        """±%2 tolerans içindeki seviyeler aynı kümede toplanmalı"""
+        # 100 * 0.02 = 2 → 93 ile 94.8 arası (%2 içinde)
+        levels = [
+            {"price": 93.0, "source": "Fibonacci fib_0.618"},
+            {"price": 94.5, "source": "SMA Uzun"},   # 93 * 1.02 = 94.86 → içinde
+            {"price": 96.0, "source": "Bollinger Alt"},  # 93 * 1.02 = 94.86 → dışında
+        ]
+        result = find_strongest_level(levels, 100.0, direction="support")
+        # En güçlü küme 93+94.5 (strength=2) olmalı
+        self.assertEqual(result["strength"], 2)
 
 
 if __name__ == "__main__":
