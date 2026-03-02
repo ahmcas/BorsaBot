@@ -743,28 +743,28 @@ def generate_html_body(
                             <tbody>
                                 <tr style="border-top: 1px solid #30363d;">
                                     <td style="padding: 6px 10px; color: #58a6ff; font-weight: bold;">≥ 80</td>
-                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🔥 GÜÇLÜ AL</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">💎 GÜÇLÜ AL</td>
                                     <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumlu, güçlü alım fırsatı</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 6px 10px; color: #56d364; font-weight: bold;">≥ 70</td>
+                                    <td style="padding: 6px 10px; color: #56d364; font-weight: bold;">≥ 66</td>
                                     <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟢 AL</td>
                                     <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Göstergeler olumlu, alım yapılabilir</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 6px 10px; color: #d29922; font-weight: bold;">≥ 60</td>
+                                    <td style="padding: 6px 10px; color: #d29922; font-weight: bold;">≥ 50</td>
                                     <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟡 TUT</td>
                                     <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Mevcut pozisyonu koru, ne al ne sat</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d; background: #161b22;">
-                                    <td style="padding: 6px 10px; color: #d29922; font-weight: bold;">≥ 40</td>
-                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟠 AZALT</td>
-                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Göstergeler olumsuz, pozisyonu kademeli azalt</td>
+                                    <td style="padding: 6px 10px; color: #d29922; font-weight: bold;">≥ 35</td>
+                                    <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🟠 DİKKATLİ OL</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Dikkatli ol, pozisyonu gözden geçir</td>
                                 </tr>
                                 <tr style="border-top: 1px solid #30363d;">
-                                    <td style="padding: 6px 10px; color: #f85149; font-weight: bold;">&lt; 40</td>
+                                    <td style="padding: 6px 10px; color: #f85149; font-weight: bold;">&lt; 35</td>
                                     <td style="padding: 6px 10px; color: #e6edf3; font-weight: bold;">🔴 SAT</td>
-                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Teknik göstergeler çok olumsuz, sat</td>
+                                    <td style="padding: 6px 10px; color: #8b949e; font-size: 13px;">Göstergeler olumsuz, satış düşünülebilir</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -884,15 +884,33 @@ def generate_html_body(
                 if breakout_type == "resistance_break":
                     breakout_label = "🔥 DİRENÇ KIRILDI" + (" + 📦 YÜKSEK HACİM" if volume_surge else "")
                     breakout_color = "#ffd700"
+                    breakout_desc = "Fiyat direnç seviyesini aştı — yükseliş sinyali"
                 elif breakout_type == "near_resistance":
                     breakout_label = "📈 DİRENÇE YAKIN" + (" + 📦 YÜKSEK HACİM" if volume_surge else "")
                     breakout_color = "#d29922"
+                    breakout_desc = "Fiyat dirence çok yakın — kırılma potansiyeli var"
                 elif breakout_type == "support_bounce":
                     breakout_label = "🔄 DESTEK SEKMESI"
                     breakout_color = "#58a6ff"
+                    breakout_desc = "Fiyat destek seviyesinden sekti — dip alım fırsatı"
                 else:
                     breakout_label = "📊 TREND GİRİŞİ"
                     breakout_color = "#8b949e"
+                    breakout_desc = "Genel trend yönüne göre giriş noktası"
+                
+                # R/R etiketi (eşikler: PERFORMANS_REHBERI.txt'e göre)
+                if rr_ratio >= 3.0:
+                    rr_label = "🟢 Mükemmel"
+                    rr_label_color = "#56d364"
+                elif rr_ratio >= 2.0:
+                    rr_label = "🟢 İyi"
+                    rr_label_color = "#56d364"
+                elif rr_ratio >= 1.5:
+                    rr_label = "🟡 Kabul Edilebilir"
+                    rr_label_color = "#d29922"
+                else:
+                    rr_label = "🔴 Riskli"
+                    rr_label_color = "#f85149"
                 
                 html += f"""
                     <div class="stock-card">
@@ -907,6 +925,7 @@ def generate_html_body(
                             <div>
                                 <div class="rating-badge">{rating}</div>
                                 <div style="margin-top:8px; padding:4px 10px; background:{breakout_color}22; color:{breakout_color}; border-radius:12px; font-size:12px; font-weight:bold; text-align:center;">{breakout_label}</div>
+                                <div style="margin-top:4px; font-size:10px; color:#8b949e; text-align:center;">{breakout_desc}</div>
                             </div>
                         </div>
                         
@@ -1023,6 +1042,10 @@ def generate_html_body(
                                 <div class="rr-label">Tahmini Kazanç</div>
                                 <div class="rr-value">{reward_pct:+.1f}%</div>
                             </div>
+                        </div>
+                        <div style="text-align:center; margin-top:6px; font-size:12px;">
+                            <span style="color:#8b949e;">R/R Oranı: </span>
+                            <span style="color:{rr_label_color}; font-weight:bold;">{rr_ratio:.2f}x — {rr_label}</span>
                         </div>
                         
                         <!-- SİNYALLER -->
