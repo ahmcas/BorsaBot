@@ -495,6 +495,8 @@ class TechnicalAnalyzer:
                 "fib_0.236": round(high - (distance * 0.236), 2),
                 "fib_0.382": round(high - (distance * 0.382), 2),
                 "fib_0.618": round(high - (distance * 0.618), 2),
+                "fib_0.786": round(high - (distance * 0.786), 2),
+                "fib_1.0": round(low, 2),
             }
         
         except:
