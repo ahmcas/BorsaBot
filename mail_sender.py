@@ -964,6 +964,7 @@ def generate_html_body(
                                 <div style="font-size:11px; color:#58a6ff; text-transform:uppercase; margin-bottom:6px;">⚖️ R/R Oranı</div>
                                 <div style="font-size:14px; font-weight:bold; color:#58a6ff;">{rr_ratio:.2f}x</div>
                                 <div style="font-size:12px; color:#8b949e; margin-top:4px;">📅 {timeframe}</div>
+                                <div style="font-size:11px; color:{rr_label_color}; margin-top:4px; font-weight:bold;">{rr_label}</div>
                             </div>
                         </div>
                         
@@ -1042,10 +1043,6 @@ def generate_html_body(
                                 <div class="rr-label">Tahmini Kazanç</div>
                                 <div class="rr-value">{reward_pct:+.1f}%</div>
                             </div>
-                        </div>
-                        <div style="text-align:center; margin-top:6px; font-size:12px;">
-                            <span style="color:#8b949e;">R/R Oranı: </span>
-                            <span style="color:{rr_label_color}; font-weight:bold;">{rr_ratio:.2f}x — {rr_label}</span>
                         </div>
                         
                         <!-- SİNYALLER -->
