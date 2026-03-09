@@ -345,5 +345,288 @@ class TestGetNewsNoApiKey(unittest.TestCase):
             cfg.NEWS_API_KEY = original_key
 
 
+# ─────────────────────────────────────────────
+# RateLimiter – Gelişmiş İzleme Testleri
+# ─────────────────────────────────────────────
+
+@pytest.mark.unit
+class TestRateLimiterEnhanced(unittest.TestCase):
+    """Geliştirilmiş RateLimiter özellikleri"""
+
+    def test_add_request_with_keyword(self):
+        """add_request() keyword parametresiyle çağrılabilmeli"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        rl.add_request(keyword="technology")
+        self.assertEqual(rl.requests_remaining(), 9)
+
+    def test_add_request_without_keyword(self):
+        """add_request() keyword olmadan geriye dönük uyumlu çalışmalı"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        rl.add_request()
+        self.assertEqual(rl.requests_remaining(), 9)
+
+    def test_get_request_history_returns_list(self):
+        """get_request_history() liste döndürmeli"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        history = rl.get_request_history()
+        self.assertIsInstance(history, list)
+
+    def test_get_request_history_empty_on_start(self):
+        """Yeni limiter boş geçmişle başlamalı"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        self.assertEqual(len(rl.get_request_history()), 0)
+
+    def test_get_request_history_records_keyword(self):
+        """Geçmiş kayıt keyword içermeli"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        rl.add_request(keyword="finans")
+        history = rl.get_request_history()
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["keyword"], "finans")
+
+    def test_get_request_history_records_timestamp(self):
+        """Geçmiş kayıt timestamp içermeli"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        rl.add_request(keyword="enerji")
+        history = rl.get_request_history()
+        self.assertIn("timestamp", history[0])
+
+    def test_get_request_history_multiple_keywords(self):
+        """Birden fazla keyword geçmişte sırayla görünmeli"""
+        rl = RateLimiter(max_requests=10, period_hours=1)
+        for kw in ["finans", "teknoloji", "enerji"]:
+            rl.add_request(keyword=kw)
+        history = rl.get_request_history()
+        keywords = [h["keyword"] for h in history]
+        self.assertIn("finans", keywords)
+        self.assertIn("teknoloji", keywords)
+        self.assertIn("enerji", keywords)
+
+    def test_blocked_state_prevents_request(self):
+        """Bloklu durumda can_request() False dönmeli"""
+        rl = RateLimiter(max_requests=100, period_hours=1)
+        rl.block_until(seconds=9999)
+        self.assertFalse(rl.can_request())
+
+
+# ─────────────────────────────────────────────
+# get_news() – API-First Strateji Testleri
+# ─────────────────────────────────────────────
+
+@pytest.mark.unit
+class TestGetNewsApiFirst(unittest.TestCase):
+    """get_news() API-first stratejisi testleri"""
+
+    def _make_api_response(self, articles=None, status="ok"):
+        """Mock API yanıtı oluştur"""
+        from unittest.mock import MagicMock
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {
+            "status": status,
+            "articles": articles or [
+                {
+                    "title": "Test Article",
+                    "description": "Test description",
+                    "publishedAt": "2026-01-01T10:00:00Z",
+                    "source": {"name": "Reuters"},
+                }
+            ],
+        }
+        return resp
+
+    def setUp(self):
+        import tempfile
+        self.tmp_dir = tempfile.mkdtemp()
+        NewsAnalyzer._rate_limiter = RateLimiter(max_requests=100, period_hours=24)
+        NewsAnalyzer._cache = CacheManager(cache_dir=self.tmp_dir, ttl_hours=24)
+
+    def tearDown(self):
+        NewsAnalyzer._rate_limiter = RateLimiter(max_requests=100, period_hours=24)
+        NewsAnalyzer._cache = CacheManager(cache_dir="cache/news", ttl_hours=24)
+
+    def test_api_called_when_key_present(self):
+        """Geçerli API key ile requests.get çağrılmalı"""
+        from unittest.mock import patch
+        import config as cfg
+
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "valid_test_key_1234567890"
+            with patch("requests.get", return_value=self._make_api_response()) as mock_get:
+                result = NewsAnalyzer.get_news("technology", days_back=1, use_cache=False)
+                mock_get.assert_called_once()
+                self.assertIsInstance(result, list)
+                self.assertEqual(len(result), 1)
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+    def test_successful_api_result_cached(self):
+        """Başarılı API sonucu cache'e kaydedilmeli"""
+        from unittest.mock import patch
+        import config as cfg
+
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "valid_test_key_1234567890"
+            with patch("requests.get", return_value=self._make_api_response()):
+                NewsAnalyzer.get_news("technology", days_back=1, use_cache=True)
+            cached = NewsAnalyzer._cache.get("news_technology_1")
+            self.assertIsNotNone(cached)
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+    def test_api_error_falls_back_to_cache(self):
+        """API hatası durumunda cache'deki veri dönmeli"""
+        from unittest.mock import patch, MagicMock
+        import config as cfg
+
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "valid_test_key_1234567890"
+            cached_articles = [{"title": "Cached", "description": "Old cached article",
+                                 "publishedAt": "2026-01-01T10:00:00Z"}]
+            NewsAnalyzer._cache.set("news_technology_1", cached_articles)
+
+            err_resp = MagicMock()
+            err_resp.status_code = 401
+            err_resp.json.return_value = {"status": "error", "code": "apiKeyInvalid",
+                                          "message": "Your API key is invalid."}
+            with patch("requests.get", return_value=err_resp):
+                result = NewsAnalyzer.get_news("technology", days_back=1, use_cache=True)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]["title"], "Cached")
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+    def test_timeout_falls_back_to_cache(self):
+        """Timeout durumunda cache'deki veri dönmeli"""
+        from unittest.mock import patch
+        import requests as req_lib
+        import config as cfg
+
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "valid_test_key_1234567890"
+            cached_articles = [{"title": "Cached on timeout", "description": "Old article",
+                                 "publishedAt": "2026-01-01T10:00:00Z"}]
+            NewsAnalyzer._cache.set("news_technology_1", cached_articles)
+
+            with patch("requests.get", side_effect=req_lib.exceptions.Timeout):
+                result = NewsAnalyzer.get_news("technology", days_back=1, use_cache=True)
+            self.assertEqual(len(result), 1)
+            self.assertEqual(result[0]["title"], "Cached on timeout")
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+    def test_rate_limit_exhausted_uses_cache(self):
+        """Rate limit doluysa cache kullanılmalı"""
+        from unittest.mock import patch
+        import config as cfg
+
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "valid_test_key_1234567890"
+            NewsAnalyzer._rate_limiter = RateLimiter(max_requests=1, period_hours=24)
+            NewsAnalyzer._rate_limiter.add_request()
+
+            cached_articles = [{"title": "Rate limited cached", "description": "Desc",
+                                 "publishedAt": "2026-01-01T10:00:00Z"}]
+            NewsAnalyzer._cache.set("news_technology_1", cached_articles)
+
+            with patch("requests.get") as mock_get:
+                result = NewsAnalyzer.get_news("technology", days_back=1, use_cache=True)
+                mock_get.assert_not_called()
+            self.assertEqual(result[0]["title"], "Rate limited cached")
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+
+# ─────────────────────────────────────────────
+# analyze_sector_news() – Başarısız Sonuç Cache Testleri
+# ─────────────────────────────────────────────
+
+@pytest.mark.unit
+class TestAnalyzeSectorNewsNoCacheFailures(unittest.TestCase):
+    """analyze_sector_news() başarısız sonuçları cache'lememeli"""
+
+    def setUp(self):
+        import tempfile
+        self.tmp_dir = tempfile.mkdtemp()
+        NewsAnalyzer._rate_limiter = RateLimiter(max_requests=100, period_hours=24)
+        NewsAnalyzer._cache = CacheManager(cache_dir=self.tmp_dir, ttl_hours=24)
+
+    def tearDown(self):
+        NewsAnalyzer._rate_limiter = RateLimiter(max_requests=100, period_hours=24)
+        NewsAnalyzer._cache = CacheManager(cache_dir="cache/news", ttl_hours=24)
+
+    def test_no_data_result_not_cached(self):
+        """no_data sonucu cache'e kaydedilmemeli"""
+        import config as cfg
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "YOUR_NEWS_API_KEY_HERE"
+            result = NewsAnalyzer.analyze_sector_news("finans", days_back=1)
+            self.assertEqual(result["status"], "no_data")
+            cached = NewsAnalyzer._cache.get("sector_finans_1")
+            self.assertIsNone(cached)
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+    def test_success_result_is_cached(self):
+        """Başarılı analiz sonucu cache'e kaydedilmeli"""
+        from unittest.mock import patch, MagicMock
+        from datetime import datetime, timedelta
+        import config as cfg
+
+        original_key = cfg.NEWS_API_KEY
+        try:
+            cfg.NEWS_API_KEY = "valid_test_key_1234567890"
+            recent_date = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            articles = [
+                {
+                    "title": "Banks report record profits this quarter",
+                    "description": "Financial sector sees strong growth",
+                    "publishedAt": recent_date,
+                    "source": {"name": "Reuters"},
+                }
+            ]
+            ok_resp = MagicMock()
+            ok_resp.status_code = 200
+            ok_resp.json.return_value = {"status": "ok", "articles": articles}
+            with patch("requests.get", return_value=ok_resp):
+                result = NewsAnalyzer.analyze_sector_news("finans", days_back=1)
+            self.assertEqual(result["status"], "success")
+            cached = NewsAnalyzer._cache.get("sector_finans_1")
+            self.assertIsNotNone(cached)
+            self.assertEqual(cached["status"], "success")
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+    def test_stale_failed_cache_not_returned(self):
+        """Eski başarısız cache girişi döndürülmemeli – API tekrar denenmeli"""
+        import config as cfg
+        original_key = cfg.NEWS_API_KEY
+        try:
+            NewsAnalyzer._cache.set("sector_teknoloji_1", {
+                "sector": "teknoloji",
+                "articles_count": 0,
+                "sentiment_score": 0.0,
+                "sentiment": "neutral",
+                "articles": [],
+                "status": "no_data",
+            })
+            cfg.NEWS_API_KEY = "YOUR_NEWS_API_KEY_HERE"
+            result = NewsAnalyzer.analyze_sector_news("teknoloji", days_back=1)
+            # no_data durumu hâlâ bekleniyor ama yeni API deneme olmalı
+            self.assertEqual(result["status"], "no_data")
+            # Cache'deki eski giriş silinmemeli (başarısız yeni sonuç cache'lenmedi)
+            still_cached = NewsAnalyzer._cache.get("sector_teknoloji_1")
+            self.assertIsNotNone(still_cached)
+            self.assertEqual(still_cached["status"], "no_data")
+        finally:
+            cfg.NEWS_API_KEY = original_key
+
+
 if __name__ == "__main__":
     unittest.main()

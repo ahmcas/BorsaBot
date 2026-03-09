@@ -41,37 +41,53 @@ class RateLimiter:
     def __init__(self, max_requests: int = 100, period_hours: int = 24):
         self.max_requests = max_requests
         self.period_seconds = period_hours * 3600
+        # Each entry is a (timestamp, keyword) tuple for detailed history tracking
         self.requests = []
         self.blocked_until = None
     
     def can_request(self) -> bool:
         """İstek yapılabilir mi?"""
-        now = time.time()
+        now = datetime.now().timestamp()
         
         # Block kontrolü
         if self.blocked_until and now < self.blocked_until:
+            remaining_secs = int(self.blocked_until - now)
+            print(f"   🔒 Rate limiter bloklu: {remaining_secs}s kaldı")
             return False
         
         # Eski istekleri temizle
-        self.requests = [req_time for req_time in self.requests 
-                        if now - req_time < self.period_seconds]
+        self.requests = [req for req in self.requests
+                        if now - req[0] < self.period_seconds]
         
         return len(self.requests) < self.max_requests
     
-    def add_request(self):
-        """İstek ekle"""
-        self.requests.append(time.time())
+    def add_request(self, keyword: str = ""):
+        """İstek ekle (keyword ile izleme)"""
+        self.requests.append((datetime.now().timestamp(), keyword))
     
     def block_until(self, seconds: int = 3600):
         """Belirtilen süre block et"""
-        self.blocked_until = time.time() + seconds
+        self.blocked_until = datetime.now().timestamp() + seconds
     
     def requests_remaining(self) -> int:
         """Kalan istek sayısı"""
-        now = time.time()
-        self.requests = [req_time for req_time in self.requests 
-                        if now - req_time < self.period_seconds]
-        return max(0, self.max_requests - len(self.requests))
+        now = datetime.now().timestamp()
+        self.requests = [req for req in self.requests
+                        if now - req[0] < self.period_seconds]
+        used = len(self.requests)
+        return max(0, self.max_requests - used)
+    
+    def get_request_history(self) -> list:
+        """Son periyottaki istek geçmişi"""
+        now = datetime.now().timestamp()
+        return [
+            {
+                "timestamp": datetime.fromtimestamp(req[0]).isoformat(),
+                "keyword": req[1],
+            }
+            for req in self.requests
+            if now - req[0] < self.period_seconds
+        ]
 
 
 class CacheManager:
@@ -230,29 +246,29 @@ class NewsAnalyzer:
     
     @staticmethod
     def get_news(keyword: str, days_back: int = 1, use_cache: bool = True) -> list:
-        """NewsAPI'den haber çek (OPTIMIZED)"""
+        """NewsAPI'den haber çek (API-FIRST, cache fallback)"""
+        
+        cache_key = f"news_{keyword}_{days_back}"
         
         try:
             api_key = config.NEWS_API_KEY
             
+            # API key validation with presence logging
             if not api_key or api_key == "YOUR_NEWS_API_KEY_HERE":
+                print(f"   ⚠️  NEWS_API_KEY ayarlanmamış veya placeholder değer")
                 return []
             
-            # Cache kontrolü
-            cache_key = f"news_{keyword}_{days_back}"
+            print(f"   🔑 API key mevcut ({len(api_key)} karakter)")
             
-            if use_cache:
-                cached = NewsAnalyzer._cache.get(cache_key)
-                if cached is not None:
-                    return cached
-            
-            # Rate limit kontrolü
+            # Rate limit kontrolü (API çağrısından önce)
             if not NewsAnalyzer._rate_limiter.can_request():
                 remaining = NewsAnalyzer._rate_limiter.requests_remaining()
-                print(f"   ⚠️  API LİMİT: {remaining} istek kaldı, cache kullanılıyor")
-                return NewsAnalyzer._cache.get(cache_key) or []
+                print(f"   ⚠️  API LİMİT: {remaining} istek kaldı, cache fallback kullanılıyor")
+                if use_cache:
+                    return NewsAnalyzer._cache.get(cache_key) or []
+                return []
             
-            # API çağrısı yap
+            # API çağrısı yap (API-FIRST stratejisi)
             to_date = datetime.now()
             from_date = to_date - timedelta(days=days_back)
             
@@ -264,37 +280,55 @@ class NewsAnalyzer:
                 "sortBy": "publishedAt",
                 "language": "en",
                 "apiKey": api_key,
-                "pageSize": 5  # Az sayıda istek
+                "pageSize": 5
             }
             
+            print(f"   🌐 API isteği: {url}?q={keyword}&from={params['from']}&to={params['to']}")
+            
             response = requests.get(url, params=params, timeout=10)
+            print(f"   📡 HTTP status: {response.status_code}")
             data = response.json()
             
-            NewsAnalyzer._rate_limiter.add_request()
+            NewsAnalyzer._rate_limiter.add_request(keyword)
             
             if data.get("status") == "ok":
                 articles = data.get("articles", [])
+                print(f"   ✅ API'den {len(articles)} haber alındı: {keyword}")
                 
-                # Cache'e kaydet
+                # Başarılı sonucu cache'e kaydet
                 NewsAnalyzer._cache.set(cache_key, articles)
                 
                 return articles
             else:
-                error_msg = data.get("message", "Unknown")
+                error_msg = data.get("message", "Bilinmeyen hata")
+                error_code = data.get("code", "unknown")
+                print(f"   ❌ API hatası [{error_code}]: {error_msg}")
                 
                 # Rate limit hatası
-                if "too many requests" in error_msg.lower():
+                if "too many requests" in error_msg.lower() or response.status_code == 429:
                     NewsAnalyzer._rate_limiter.block_until(3600)
-                    return NewsAnalyzer._cache.get(cache_key) or []
+                    print(f"   🔒 Rate limit aşıldı, 1 saat bloklandı")
                 
+                # API başarısız → cache'e fallback
+                if use_cache:
+                    cached = NewsAnalyzer._cache.get(cache_key)
+                    if cached:
+                        print(f"   💾 Cache fallback: {len(cached)} haber")
+                        return cached
                 return []
         
         except requests.exceptions.Timeout:
-            # Timeout - cache'den al
-            cache_key = f"news_{keyword}_{days_back}"
-            return NewsAnalyzer._cache.get(cache_key) or []
+            print(f"   ⏱️  API timeout: {keyword} (10s)")
+            # Timeout → cache fallback
+            if use_cache:
+                cached = NewsAnalyzer._cache.get(cache_key)
+                if cached:
+                    print(f"   💾 Timeout fallback: cache'den {len(cached)} haber")
+                    return cached
+            return []
         
         except Exception as e:
+            print(f"   ❌ API istek hatası [{type(e).__name__}]: {str(e)[:60]}")
             return []
     
     @staticmethod
@@ -341,13 +375,13 @@ class NewsAnalyzer:
         """Sektör haber analizi"""
         
         try:
-            # Cache kontrol
+            # Cache kontrol – sadece önceki başarılı sonucu dön
             cache_key = f"sector_{sector}_{days_back}"
             cached = NewsAnalyzer._cache.get(cache_key)
-            if cached:
+            if cached and cached.get("status") == "success":
                 return cached
             
-            # Haber çek
+            # Haber çek (API-FIRST)
             articles = NewsAnalyzer.get_news(sector, days_back, use_cache=True)
             
             if not articles:
@@ -359,7 +393,7 @@ class NewsAnalyzer:
                     "articles": [],
                     "status": "no_data"
                 }
-                NewsAnalyzer._cache.set(cache_key, result)
+                # Başarısız sonucu cache'e KAYDETME – API sonraki seferde tekrar denenecek
                 return result
             
             # Filtrele
@@ -374,7 +408,7 @@ class NewsAnalyzer:
                     "articles": [],
                     "status": "no_quality"
                 }
-                NewsAnalyzer._cache.set(cache_key, result)
+                # Kalitesiz sonucu cache'e KAYDETME – API sonraki seferde tekrar denenecek
                 return result
             
             # Sentiment
