@@ -283,6 +283,16 @@ class TestFilterArticles(unittest.TestCase):
         result = NewsAnalyzer.filter_articles(articles)
         self.assertEqual(len(result), 2)
 
+    def test_old_articles_filtered_out(self):
+        """30 günden eski makaleler filtrelenmeli"""
+        from datetime import datetime, timedelta
+        old_date = (datetime.now() - timedelta(days=35)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        articles = [
+            {"title": "Old news", "description": "Very old article", "publishedAt": old_date},
+        ]
+        result = NewsAnalyzer.filter_articles(articles)
+        self.assertEqual(len(result), 0)
+
 
 # ─────────────────────────────────────────────
 # GlobalSectorAnalyzer Testleri

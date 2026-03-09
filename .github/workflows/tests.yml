@@ -18,6 +18,8 @@ jobs:
   unit-tests:
     name: Unit Tests (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -73,6 +75,8 @@ jobs:
   integration-tests:
     name: Integration & E2E Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: unit-tests
 
     steps:
@@ -103,6 +107,8 @@ jobs:
   performance-tests:
     name: Performance Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     needs: unit-tests
 
     steps:

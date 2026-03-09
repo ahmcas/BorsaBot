@@ -163,9 +163,9 @@ class TestNewsToScoreIntegration(unittest.TestCase):
     def test_sector_score_default_when_missing(self):
         """Eksik sektör için 0.0 fallback uygulanmalı"""
         tech_score = 65.0
-        # Boş sector_scores ile composite hesapla
+        # sentiment=0.0 → normalized = (0.0 + 1) / 2 * 100 = 50 (nötr news skoru)
+        # Composite = (65 * 0.6) + (50 * 0.4) = 39 + 20 = 59
         composite = ScoreCalculator.calculate_composite_score(tech_score, 0.0)
-        # Beklenen: (65 * 0.6) + (50 * 0.4) = 39 + 20 = 59
         self.assertAlmostEqual(composite, 59.0, delta=1.0)
 
 
@@ -180,7 +180,8 @@ class TestScoringDataFlow(unittest.TestCase):
     def test_composite_score_formula(self):
         """Composite skor = (teknik * 0.6) + (news * 0.4) formülü"""
         tech = 70.0
-        # Sentiment 0.5 → normalized_sentiment = (0.5+1)/2*100 = 75
+        # sentiment=0.5 → normalized_sentiment = (0.5 + 1) / 2 * 100 = 75
+        # (formula: sentiment ∈ [-1,1] is scaled to [0,100])
         # Composite = 70*0.6 + 75*0.4 = 42 + 30 = 72
         composite = ScoreCalculator.calculate_composite_score(tech, 0.5)
         self.assertAlmostEqual(composite, 72.0, delta=0.1)
