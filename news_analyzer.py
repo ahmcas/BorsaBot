@@ -463,18 +463,26 @@ def analyze_news(days_back: int = 1) -> dict:
     
     remaining = NewsAnalyzer._rate_limiter.requests_remaining()
     available_slots = min(len(NewsAnalyzer.PRIMARY_SECTORS), remaining)
+    print(f"   📊 API limit: {remaining}/100 istek mevcut, {available_slots} slot kullanılacak")
     
     if available_slots > 0:
         for sector in list(NewsAnalyzer.PRIMARY_SECTORS.keys())[:available_slots]:
             result = NewsAnalyzer.analyze_sector_news(sector, days_back)
-            sector_scores[sector] = result["sentiment_score"]
+            # Sadece başarılı API sonuçlarını kullan; başarısız olursa
+            # aşağıdaki fallback döngüsü manuel mood'u uygulayacak
+            if result.get("status") == "success":
+                sector_scores[sector] = result["sentiment_score"]
+                print(f"   ✅ {sector.upper():15s}: {result['sentiment_score']:+.3f} (API, {result.get('articles_count', 0)} haber)")
+            else:
+                print(f"   ⭕ {sector.upper():15s}: API verisi yok (status={result.get('status', 'error')}), manual mood kullanılacak")
     
     # Boş kalan sektörleri manuel mood ile doldur
+    # (API'den veri gelmeyenler veya API limiti aşılanlar için)
     for sector in NewsAnalyzer.PRIMARY_SECTORS.keys():
         if sector not in sector_scores:
             mood = GlobalSectorAnalyzer.get_sector_mood(sector)
             sector_scores[sector] = mood
-            print(f"   ⭕ {sector.upper():15s} (manual mood): {mood:+.3f}")
+            print(f"   ⭕ {sector.upper():15s}: {mood:+.3f} (manual mood)")
     
     # ADIM 2: Secondary sectors (hiç API çağrısı YOK)
     print("\n   📊 İkincil Sektörler (Manual Mood):")
@@ -575,9 +583,17 @@ def analyze_news(days_back: int = 1) -> dict:
     
     # Bilgilendirme
     remaining = NewsAnalyzer._rate_limiter.requests_remaining()
-    print(f"\n✅ {len(sector_scores)-3} sektör analiz edildi")
+    non_meta_keys = {"genel", "geopolitical_risk", "supply_demand_trends"}
+    sector_count = len([k for k in sector_scores if k not in non_meta_keys])
+    print(f"\n✅ {sector_count} sektör analiz edildi")
     print(f"   📊 API limit: {remaining}/100 istek kaldı")
     print(f"   💾 Cache bellek: {NewsAnalyzer._cache.get_memory_usage()}")
+    print("\n   📈 Sektör Sentiment Özeti:")
+    scored_sectors = [(k, v) for k, v in sector_scores.items()
+                      if k not in non_meta_keys and isinstance(v, (int, float))]
+    for s, v in sorted(scored_sectors, key=lambda x: x[1], reverse=True):
+        emoji = "🟢" if v > 0.2 else "🔴" if v < -0.2 else "🟡"
+        print(f"      {emoji} {s:25s}: {v:+.3f}")
     
     return sector_scores
 

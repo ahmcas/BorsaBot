@@ -114,6 +114,7 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
     if max_count is None:
         max_count = config.MAX_RECOMMENDATIONS
     candidates = []
+    print(f"\n   🔢 Skor Hesaplama ({len([r for r in technical_results if not r.get('skip')])} hisse):")
     for result in technical_results:
         if result.get("skip"):
             continue
@@ -123,6 +124,8 @@ def select_top_stocks(technical_results: list, sector_scores: dict, max_count: i
         sector_sentiment = sector_scores.get(sector, 0.0)
         composite_score = ScoreCalculator.calculate_composite_score(technical_score, sector_sentiment)
         fibonacci = result.get("fibonacci", {})
+
+        print(f"      {ticker:10s} | {sector:20s} | teknik={technical_score:5.1f} | sentiment={sector_sentiment:+.3f} | composite={composite_score:5.1f}")
         current_price = result.get("current_price", 0)
 
         # Tüm teknik seviyeleri topla
